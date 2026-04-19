@@ -25,7 +25,7 @@ private:
 
 WarlockStrategy::WarlockStrategy(PlayerbotAI* ai) : ClassStrategy(ai)
 {
-    actionNodeFactories.Add(new WarlockStrategyActionNodeFactory());
+    actionNodeFactories.Add(std::make_unique<WarlockStrategyActionNodeFactory>());
 }
 
 #ifdef MANGOSBOT_ZERO // Vanilla
@@ -74,6 +74,10 @@ void WarlockStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "no healthstone",
         NextAction::array(0, new NextAction("create healthstone", ACTION_NORMAL), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "no soulstone",
+        NextAction::array(0, new NextAction("create soulstone", ACTION_NORMAL), NULL)));
 
     /*
     triggers.push_back(new TriggerNode(
@@ -526,6 +530,10 @@ void WarlockStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "no healthstone",
         NextAction::array(0, new NextAction("create healthstone", ACTION_NORMAL), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "no soulstone",
+        NextAction::array(0, new NextAction("create soulstone", ACTION_NORMAL), NULL)));
 
     /*
     triggers.push_back(new TriggerNode(
@@ -988,6 +996,10 @@ void WarlockStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "no healthstone",
         NextAction::array(0, new NextAction("create healthstone", ACTION_NORMAL), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "no soulstone",
+        NextAction::array(0, new NextAction("create soulstone", ACTION_NORMAL), NULL)));
 
     /*
     triggers.push_back(new TriggerNode(

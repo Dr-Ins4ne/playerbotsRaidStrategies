@@ -115,7 +115,7 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
     if (go && sServerFacade.GetDistance2d(bot, go) > INTERACTION_DISTANCE)
         return false;
 
-    if (go && (go->IsInUse() || go->GetGoState() != GO_STATE_READY))
+    if (go && (go->IsInUse() || go->GetGoState() == GO_STATE_ACTIVE))
         return false;
 
     if (lootObject.skillId == SKILL_MINING)
@@ -272,6 +272,11 @@ bool StoreLootAction::Execute(Event& event)
 
     bot->SetLootGuid(guid);
 
+    Loot* loot = sLootMgr.GetLoot(bot);
+
+    if (!loot)
+        return false;
+
     if (gold > 0)
     {
         WorldPacket packet(CMSG_LOOT_MONEY, 0);
@@ -312,11 +317,6 @@ bool StoreLootAction::Execute(Event& event)
 
         ItemPrototype const *proto = sItemStorage.LookupEntry<ItemPrototype>(itemid);
         if (!proto)
-            continue;
-
-        Loot* loot = sLootMgr.GetLoot(bot);
-
-        if (!loot)
             continue;
 
         LootItem* lootItem = loot->GetLootItemInSlot(itemindex);

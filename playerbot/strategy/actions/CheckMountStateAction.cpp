@@ -16,9 +16,16 @@ bool CheckMountStateAction::Execute(Event& event)
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
     Player* groupMaster = ai->GetGroupMaster();
 
+    if (bot->IsMounted() && (bot->GetTransport() || bot->IsTaxiFlying() || bot->IsBeingTeleported()))
+    {
+        if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT))
+            ai->TellPlayerNoFacing(requester, "Unmount. On a taxi or a boat/zeppelin.");
+
+        return UnMount();
+    }
+
     bool hasAttackers = AI_VALUE(bool, "has attackers");
     bool hasEnemy = AI_VALUE(bool, "has enemy player targets") || AI_VALUE(Unit*, "dps target");
-    TravelTarget* travelTarget = AI_VALUE(TravelTarget*, "travel target");
 
     bool canFly = CanFly();
 
@@ -85,7 +92,10 @@ bool CheckMountStateAction::Execute(Event& event)
     }
 
     //Following master and close to master that is unmounted.
-    if (ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) && groupMaster && groupMaster != bot && !farFromMaster && !IsLeaderMounted)
+    if ((ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) ||
+        ai->HasStrategy("wander", BotState::BOT_STATE_NON_COMBAT)) &&
+        groupMaster && groupMaster != bot &&
+        !farFromMaster && !IsLeaderMounted)
     {
         if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT) && IsMounted)
             ai->TellPlayerNoFacing(requester, "Unmount. Near umounted group master.");
@@ -128,7 +138,7 @@ bool CheckMountStateAction::Execute(Event& event)
     }
 
     //Doing stuff nearby.
-    if (travelTarget->GetStatus() == TravelStatus::TRAVEL_STATUS_WORK)
+    if (AI_VALUE(bool, "travel target working"))
     {
         if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT) && IsMounted)
             ai->TellPlayerNoFacing(requester, "Unmount. Near travel target.");
@@ -145,7 +155,9 @@ bool CheckMountStateAction::Execute(Event& event)
         return UnMount();
     }
 
-    if (ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) && groupMaster)
+    if ((ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) ||
+        ai->HasStrategy("wander", BotState::BOT_STATE_NON_COMBAT)) &&
+        groupMaster && groupMaster != bot)
     {
         //Mounting with master.
         if (IsLeaderMounted && !hasAttackers)
@@ -271,25 +283,13 @@ bool CheckMountStateAction::isUseful()
     if (!bot->IsMounted() && bot->IsInWater())
         return false;
 
-    bool firstmount = bot->GetLevel() >=
-#ifdef MANGOSBOT_ZERO
-        40
-#else
-#ifdef MANGOSBOT_ONE
-        30
-#else
-        20
-#endif
-#endif
-        ;
-    if (!firstmount)
-        return false;
-
-    // Do not use with BG Flags
+    // Do not use with BG Flags, except forms like "Travel Form" and "Ghost Wolf"
     if (bot->HasAura(23333) || bot->HasAura(23335) || bot->HasAura(34976))
-    {
+{
+    if (!bot->HasSpell(783) && !bot->HasSpell(2645))
         return false;
-    }
+}
+
 
     // Only mount if BG starts in less than 30 sec
     if (bot->InBattleGround())
@@ -407,13 +407,17 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
             if (member == bot)
                 continue;
 
+            if (!ai->IsSafe(member))
+                continue;
+
             if (!member->GetPlayerbotAI())
                 continue;
 
             if (!member->IsAlive())
                 continue;
 
-            if (!member->GetPlayerbotAI()->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT))
+            if (!(member->GetPlayerbotAI()->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) ||
+                member->GetPlayerbotAI()->HasStrategy("wander", BotState::BOT_STATE_NON_COMBAT)))
                 continue;
 
             if (WorldPosition(bot).distance(member) > sPlayerbotAIConfig.reactDistance * 5)
@@ -462,7 +466,9 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
 
         ai->RemoveShapeshift();
 
-        if (sServerFacade.isMoving(bot))
+        bool wasMoving = sServerFacade.isMoving(bot);
+
+        if (wasMoving)
         {
             ai->StopMoving();
         }
@@ -504,14 +510,11 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
                     ai->TellPlayerNoFacing(requester, "Bot does not have this mount spell.", PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
                 continue;
             }
-
-            if (ai->CastSpell(mount.GetSpellId(), bot))
+            uint32 castDuration;
+            if (ai->CastSpell(mount.GetSpellId(), bot, nullptr, true, &castDuration))
             {
-#ifdef MANGOSBOT_TWO
-                bot->ResolvePendingMount();
-#endif
                 sPlayerbotAIConfig.logEvent(ai, "CheckMountStateAction", sServerFacade.LookupSpellInfo(mount.GetSpellId())->SpellName[0], std::to_string(mount.GetSpeed(canFly)));
-                SetDuration(GetSpellRecoveryTime(sServerFacade.LookupSpellInfo(mount.GetSpellId())));
+                SetDuration(castDuration);
                 didMount = true;
             }
             else
@@ -523,8 +526,11 @@ bool CheckMountStateAction::Mount(Player* requester, bool limitSpeedToGroup)
 
         if (didMount)
         {
-            if(sServerFacade.isMoving(bot))
-                ai->HandleCommand(CHAT_MSG_WHISPER, "do check mount state", *bot);
+            if (wasMoving)
+            {
+                ai->HandleCommand(CHAT_MSG_WHISPER, "queue do check mount state", *bot);
+                ai->TellDebug(requester, "was moving trying to mount again.", "debug mount");
+            }
 
             if (ai->HasStrategy("debug mount", BotState::BOT_STATE_NON_COMBAT))
                 ai->TellPlayerNoFacing(requester, "Mounting.");

@@ -13,8 +13,9 @@ namespace ai
         virtual bool Execute(Event& event);
         virtual bool isUseful();
 
-        //static bool isFollowValid(Player* bot, WorldObject* target);
-        //static bool isFollowValid(Player* bot, WorldPosition pos);
+        std::unordered_map<ObjectGuid, float> GetTargets(Player* requester, bool debug = false);
+
+        std::string GetRpgActionReason(ObjectGuid target) { auto reason = rgpActionReason.find(target); if (reason != rgpActionReason.end())  return reason->second; return ""; }
     private:        
         float getMaxRelevance(GuidPosition guidP);
         bool HasSameTarget(ObjectGuid guid, uint32 max, std::list<ObjectGuid>& nearGuids);
@@ -25,9 +26,6 @@ namespace ai
     class ClearRpgTargetAction : public ChooseRpgTargetAction {
     public:
         ClearRpgTargetAction(PlayerbotAI* ai) : ChooseRpgTargetAction(ai, "clear rpg target") {}
-
-        virtual bool Execute(Event& event);
-        virtual bool isUseful();
     };
 
 }

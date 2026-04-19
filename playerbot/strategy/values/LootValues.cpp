@@ -120,6 +120,41 @@ LootTemplateAccess const* DropMapValue::GetLootTemplate(ObjectGuid guid, LootTyp
 	return lTemplateA;
 }
 
+DropMap* ItemDropMapValue::Calculate()
+{
+	DropMap* dropMap = new DropMap;
+
+	for (uint32 itemId = 0; itemId < sItemStorage.GetMaxEntry(); itemId++)
+	{
+		ItemPrototype const* proto = sItemStorage.LookupEntry<ItemPrototype>(itemId);
+
+		if (!proto)
+			continue;
+
+		if (!(proto->Flags & ITEM_FLAG_HAS_LOOT))
+			continue;
+
+		LootTemplateAccess const* lTemplateA = DropMapValue::GetLootTemplate(ObjectGuid(HIGHGUID_ITEM, itemId, uint32(1)), LOOT_CORPSE);
+
+		if (lTemplateA)
+		{
+			for (LootStoreItem const& lItem : lTemplateA->Entries)
+				dropMap->insert(std::make_pair(lItem.itemid, itemId));
+
+			for (LootLootGroupAccess const& group : lTemplateA->Groups)
+			{
+				for (LootStoreItem const& lItem : group.ExplicitlyChanced)
+					dropMap->insert(std::make_pair(lItem.itemid, itemId));
+
+				for (LootStoreItem const& lItem : group.EqualChanced)
+					dropMap->insert(std::make_pair(lItem.itemid, itemId));
+			}
+		}
+	}
+
+	return dropMap;
+}
+
 DropMap* DropMapValue::Calculate()
 {
 	DropMap* dropMap = new DropMap;
@@ -168,6 +203,16 @@ DropMap* DropMapValue::Calculate()
 					dropMap->insert(std::make_pair(lItem.itemid, -sEntry));
 			}
 		}
+	}
+
+	DropMap* itemDropMap = GAI_VALUE(DropMap*, "item drop map");
+
+	//Add items that drop from items.
+	for (auto& [lootItemId, sourceItemId] : *itemDropMap)
+	{
+		auto range = dropMap->equal_range(sourceItemId);
+		for (auto itr = range.first; itr != range.second; ++itr)
+			dropMap->insert(std::make_pair(lootItemId, itr->second));
 	}
 
 	return dropMap;
@@ -224,7 +269,7 @@ float LootChanceValue::Calculate()
 
 	if (lTemplateA)
 	{
-		for (auto item : lTemplateA->Entries)
+		for (auto& item : lTemplateA->Entries)
 			if (item.itemid == itemId)
 				return item.chance;
 
@@ -324,7 +369,37 @@ bool ShouldLootObject::Calculate()
 		return false;
 
 	if (!object->m_loot)
-		return true;
+    {
+		if (!object->IsGameObject())
+			return true;
+
+		GameObject* go = static_cast<GameObject*>(object);
+
+		if (go->GetGoType() != GAMEOBJECT_TYPE_GOOBER)
+			return true;
+
+		uint32 spellId = go->GetSpellId();
+
+		if (!spellId)
+            return true;
+
+		SpellEntry const* lootSpell = GetSpellStore()->LookupEntry<SpellEntry>(spellId);
+
+		if (!lootSpell || lootSpell->Effect[0] != SPELL_EFFECT_CREATE_ITEM)
+            return true;
+
+		uint32 itemId = lootSpell->EffectItemType[0];
+
+		if (!AI_VALUE2(uint32, "stack space for item", itemId))
+            return false;
+
+        ItemQualifier ltemQualifier(itemId);
+
+        if (!StoreLootAction::IsLootAllowed(ltemQualifier, ai))
+            return false;
+
+		return true;				
+    }
 
 	if (object->m_loot->GetGoldAmount() > 0)
 		return true;
@@ -437,5 +512,5 @@ std::string ActiveRolls::Format()
 		out << ",";
 	}
 
-	return out.str().c_str();
+	return out.str();
 }

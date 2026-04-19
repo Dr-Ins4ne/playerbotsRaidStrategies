@@ -32,7 +32,7 @@ private:
 
 BalanceDruidStrategy::BalanceDruidStrategy(PlayerbotAI* ai) : DruidStrategy(ai)
 {
-    actionNodeFactories.Add(new BalanceDruidStrategyActionNodeFactory());
+    actionNodeFactories.Add(std::make_unique<BalanceDruidStrategyActionNodeFactory>());
 }
 
 #ifdef MANGOSBOT_ZERO // Vanilla
@@ -240,11 +240,11 @@ void BalanceDruidBuffStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
 
     triggers.push_back(new TriggerNode(
         "moonkin form",
-        NextAction::array(0, new NextAction("moonkin form", ACTION_MOVE), NULL)));
+        NextAction::array(0, new NextAction("moonkin form", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "innervate",
-        NextAction::array(0, new NextAction("innervate", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("innervate", ACTION_HIGH + 1), NULL)));
 }
 
 void BalanceDruidBuffStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -637,11 +637,11 @@ void BalanceDruidBuffStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
 
     triggers.push_back(new TriggerNode(
         "moonkin form",
-        NextAction::array(0, new NextAction("moonkin form", ACTION_MOVE), NULL)));
+        NextAction::array(0, new NextAction("moonkin form", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "innervate",
-        NextAction::array(0, new NextAction("innervate", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("innervate", ACTION_HIGH + 1), NULL)));
 }
 
 void BalanceDruidBuffStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -1042,11 +1042,11 @@ void BalanceDruidBuffStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
 
     triggers.push_back(new TriggerNode(
         "moonkin form",
-        NextAction::array(0, new NextAction("moonkin form", ACTION_MOVE), NULL)));
+        NextAction::array(0, new NextAction("moonkin form", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
         "innervate",
-        NextAction::array(0, new NextAction("innervate", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("innervate", ACTION_HIGH + 1), NULL)));
 }
 
 void BalanceDruidBuffStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

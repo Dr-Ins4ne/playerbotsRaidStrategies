@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-2022
     permissions:
       contents: read
 
@@ -40,7 +40,7 @@ jobs:
 
       # install dependencies
       - name: Install Boost
-        uses: MarkusJx/install-boost@v2.4.5
+        uses: MarkusJx/install-boost@v2.5.1
         id: install-boost
         with:
           # REQUIRED: Specify the required boost version
@@ -57,7 +57,7 @@ jobs:
       - name: Configure
         env:
           BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
-        run: cmake ${{matrix.EXTRA_BUILD}} -B ${{env.BUILD_DIR}} -S ${{env.REPO_DIR}}
+        run: cmake -DBUILD_PLAYERBOTS=ON -DBoost_NO_BOOST_CMAKE=ON -B ${{env.BUILD_DIR}} -S ${{env.REPO_DIR}}
 
       - name: Build
         env:
@@ -91,7 +91,7 @@ jobs:
           echo "GIT_SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
 
       - name: Notify
-        uses: rjstone/discord-webhook-notify@v1.1.1
+        uses: rjstone/discord-webhook-notify@v2.2.1
         with:
           severity: error
           description: |

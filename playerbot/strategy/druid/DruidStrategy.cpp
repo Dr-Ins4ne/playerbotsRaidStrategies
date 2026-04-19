@@ -93,7 +93,7 @@ private:
 
 DruidStrategy::DruidStrategy(PlayerbotAI* ai) : ClassStrategy(ai)
 {
-    actionNodeFactories.Add(new DruidStrategyActionNodeFactory());
+    actionNodeFactories.Add(std::make_unique<DruidStrategyActionNodeFactory>());
 }
 
 #ifdef MANGOSBOT_ZERO // Vanilla
@@ -133,7 +133,7 @@ void DruidPvpStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "player has flag",
-        NextAction::array(0, new NextAction("travel form", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("travel form", ACTION_EMERGENCY), NULL)));
 }
 
 void DruidPvpStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
@@ -510,6 +510,68 @@ void DruidOffhealRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& tr
     OffhealRaidStrategy::InitNonCombatTriggers(triggers);
 }
 
+void DruidOffdpsStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    OffdpsStrategy::InitCombatTriggers(triggers);
+
+    triggers.push_back(new TriggerNode(
+        "faerie fire",
+        NextAction::array(0, new NextAction("faerie fire", ACTION_NORMAL + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "insect swarm",
+        NextAction::array(0, new NextAction("insect swarm", ACTION_NORMAL + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "moonfire",
+        NextAction::array(0, new NextAction("moonfire", ACTION_NORMAL + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "wrath",
+        NextAction::array(0, new NextAction("wrath", ACTION_NORMAL), NULL)));
+}
+
+void DruidOffdpsStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    OffdpsStrategy::InitNonCombatTriggers(triggers);
+}
+
+void DruidOffdpsPvpStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitCombatTriggers(triggers);
+    OffdpsPvpStrategy::InitCombatTriggers(triggers);
+}
+
+void DruidOffdpsPvpStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitNonCombatTriggers(triggers);
+    OffdpsPvpStrategy::InitNonCombatTriggers(triggers);
+}
+
+void DruidOffdpsPveStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitCombatTriggers(triggers);
+    OffdpsPveStrategy::InitCombatTriggers(triggers);
+}
+
+void DruidOffdpsPveStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitNonCombatTriggers(triggers);
+    OffdpsPveStrategy::InitNonCombatTriggers(triggers);
+}
+
+void DruidOffdpsRaidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitCombatTriggers(triggers);
+    OffdpsRaidStrategy::InitCombatTriggers(triggers);
+}
+
+void DruidOffdpsRaidStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    DruidOffdpsStrategy::InitNonCombatTriggers(triggers);
+    OffdpsRaidStrategy::InitNonCombatTriggers(triggers);
+}
+
 #endif
 #ifdef MANGOSBOT_ONE // TBC
 
@@ -548,7 +610,7 @@ void DruidPvpStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "player has flag",
-        NextAction::array(0, new NextAction("travel form", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("travel form", ACTION_EMERGENCY), NULL)));
 }
 
 void DruidPvpStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
@@ -958,7 +1020,7 @@ void DruidPvpStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 
     triggers.push_back(new TriggerNode(
         "player has flag",
-        NextAction::array(0, new NextAction("travel form", ACTION_HIGH), NULL)));
+        NextAction::array(0, new NextAction("travel form", ACTION_EMERGENCY), NULL)));
 }
 
 void DruidPvpStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)

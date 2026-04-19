@@ -9,6 +9,9 @@
 #include "playerbot/TravelMgr.h"
 #include "CheckMountStateAction.h"
 #include "TellLosAction.h"
+#include "playerbot/strategy/values/ItemUsageValue.h"
+#include "playerbot/strategy/values/ItemCountValue.h"
+#include "playerbot/TravelMgr.h"
 
 using namespace ai;
 
@@ -188,13 +191,13 @@ bool RequiresItemToUse(const ItemPrototype* itemProto, PlayerbotAI* ai, Player* 
     if (!ai->HasCheat(BotCheatMask::item))
         return true;
 
-    // Exception items                                  Jujus                                            Holy water
+    // Exception items                                  Jujus                                            Holy water    
     const std::unordered_set<uint32> itemExceptions = { 12450, 12451, 12455, 12457, 12458, 12459, 12460, 13180, 7189 };
     if (itemExceptions.find(itemProto->ItemId) != itemExceptions.end())
         return false;
 
-    // Required items                                  Hearthstone
-    const std::unordered_set<uint32> itemsRequired = { 6948 };
+    // Required items                                  Hearthstone, Scourgestone
+    const std::unordered_set<uint32> itemsRequired = { 6948, 40582 };
     if (itemsRequired.find(itemProto->ItemId) != itemsRequired.end())
         return true;
 
@@ -302,6 +305,22 @@ bool UseAction::Execute(Event& event)
         {
             targetGameObject = ai->GetGameObject(*gos.begin());
         }
+
+        float closest = 9999.0f;
+        std::list<ObjectGuid> nearestGOs = AI_VALUE(std::list<ObjectGuid>, "nearest game objects no los");
+        for (const ObjectGuid& goGUID : nearestGOs)
+        {
+            GameObject* go = ai->GetGameObject(goGUID);
+            if (go && std::string(go->GetName()).find(useName))
+            {
+                const float distance = bot->GetDistance(go);
+                if (distance < closest)
+                {
+                    targetGameObject = go;
+                    closest = distance;
+                }
+            }
+        }
     }
 
     if (targetGameObject != nullptr)
@@ -369,6 +388,15 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
         }
 
         return false;
+    }
+
+    if (proto->Flags & ITEM_FLAG_HAS_LOOT)
+    {
+        std::list<Item*> items = AI_VALUE2(std::list<Item*>, "inventory items", ChatHelper::formatQItem(itemId));
+        if (!items.empty())
+        {
+            return OpenItem(requester, items.front());
+        }
     }
 
     // If bot has no item cheat (or other conditions) it needs to own the item to cast
@@ -607,6 +635,12 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
 
         if (validTarget)
         {
+            // Validate spellInfo is a proper sSpellTemplate entry before constructing (mirrors MANGOS_ASSERT in Spell::Spell)
+            if (!spellInfo || spellInfo != sSpellTemplate.LookupEntry<SpellEntry>(spellInfo->Id))
+            {
+                continue;
+            }
+
             // Use triggered flag only for items with many spell casts and for not first cast
             BotUseItemSpell* spell = new BotUseItemSpell(bot, spellInfo, (successCasts > 0) ? TRIGGERED_OLD_TRIGGERED : TRIGGERED_NONE);
             spell->m_clientCast = true;
@@ -648,11 +682,13 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
 
             if (successCast)
             {
-                // Only add cooldown if the spell doesn't use a real item
-                if (itemUsed == nullptr)
+                if (itemUsed == nullptr && ai->HasCheat(BotCheatMask::item))
                 {
-                    bot->RemoveSpellCooldown(*spellInfo, false);
-                    bot->AddCooldown(*spellInfo, proto, false);
+                    if (!HasItemCooldown(itemId))
+                    {
+                        bot->RemoveSpellCooldown(*spellInfo, false);
+                        bot->AddCooldown(*spellInfo, proto, false);
+                    }
                 }
 
                 if (IsFood(proto) || IsDrink(proto))
@@ -702,7 +738,6 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
                 replyStr << " " << BOT_TEXT("command_target_self");
             }
 
-            // Stackable
             if (itemUsed && proto->Stackable > 1)
             {
                 uint32 count = itemUsed->GetCount();
@@ -719,7 +754,9 @@ bool UseAction::UseItemInternal(Player* requester, uint32 itemId, Unit* unit, Ga
 
             ai->TellPlayerNoFacing(requester, BOT_TEXT2(replyStr.str(), replyArgs), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
         }
-        
+
+        RESET_AI_VALUE2(uint32, "item count", itemId);
+
         return true;
     }
     else
@@ -887,30 +924,79 @@ bool UseAction::UseGameObject(Player* requester, Event& event, GameObject* gameO
 
 bool UseAction::UseQuestGiverItem(Player* requester, Item* item)
 {
-    if (item)
+    if (!item)
+        return false;
+
+    const ItemPrototype* proto = item->GetProto();
+    if (!proto || !proto->StartQuest)
+        return false;
+
+    const Quest* quest = sObjectMgr.GetQuestTemplate(proto->StartQuest);
+    if (!quest)
+        return false;
+
+    if (!bot->CanTakeQuest(quest, false))
+        return false;
+
+    if (item->GetOwnerGuid() != bot->GetObjectGuid())
+        return false;
+
+    if (!bot->HasItemCount(proto->ItemId, 1))
+        return false;
+
+    Item* validItem = bot->GetItemByGuid(item->GetObjectGuid());
+    if (!validItem || validItem != item)
+        return false;
+
+    if (!bot->CanAddQuest(quest, true))
+        return false;
+
+    bot->AddQuest(quest, nullptr);
+
+    if (bot->CanCompleteQuest(quest->GetQuestId()))
+        bot->CompleteQuest(quest->GetQuestId());
+
+    bot->DestroyItemCount(proto->ItemId, 1, true);
+
+    if (verbose)
     {
-        const Quest* quest = sObjectMgr.GetQuestTemplate(item->GetProto()->StartQuest);
-        if (quest)
+        std::map<std::string, std::string> replyArgs;
+        replyArgs["%quest"] = chat->formatQuest(quest);
+        ai->TellPlayerNoFacing(requester, BOT_TEXT2("quest_accepted", replyArgs), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+    }
+
+    return true;
+}
+
+bool UseAction::OpenItem(Player* requester, Item* item)
+{
+    if (!item)
+        return false;
+
+    uint32 spellId = 0;
+    for (uint8 i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+    {
+        if (item->GetProto()->Spells[i].SpellId > 0)
         {
-            WorldPacket packet(CMSG_QUESTGIVER_ACCEPT_QUEST, 8 + 4 + 4);
-            packet << item->GetObjectGuid();
-            packet << quest->GetQuestId();
-            packet << uint32(0);
-            bot->GetSession()->HandleQuestgiverAcceptQuestOpcode(packet);
-
-            if (verbose)
-            {
-                std::map<std::string, std::string> replyArgs;
-                replyArgs["%quest"] = chat->formatQuest(quest);
-                ai->TellPlayerNoFacing(requester, BOT_TEXT2("quest_accepted", replyArgs), PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
-            }
-
-            return true;
+            spellId = item->GetProto()->Spells[i].SpellId;
+            break;
         }
     }
 
-    return false;
+    if (spellId)
+        return false;
+
+    if (!(item->GetProto()->Flags & ITEM_FLAG_HAS_LOOT))
+        return false;
+
+        // Open quest item in inventory, containing related items (e.g Gnarlpine necklace, containing Tallonkai's Jewel)
+        std::unique_ptr<WorldPacket> packet(new WorldPacket(CMSG_OPEN_ITEM, 2));
+        *packet << item->GetBagSlot();
+        *packet << item->GetSlot();
+        bot->GetSession()->QueuePacket(std::move(packet)); // queue the packet to get around race condition
+        return true;
 }
+
 
 bool UseAction::HasItemCooldown(uint32 itemId) const
 {
@@ -1081,8 +1167,9 @@ bool UseItemIdAction::isPossible()
     if (HasItemCooldown(itemId))
         return false;
 
-    if (!ai->HasCheat(BotCheatMask::item) && !bot->HasItemCount(itemId, 1))
+        if (!ai->HasCheat(BotCheatMask::item) && !bot->HasItemCount(itemId, 1))
         return false;
+
 
     uint32 spellCount = 0;
 
@@ -1169,9 +1256,18 @@ bool UseHearthStoneAction::Execute(Event& event)
 
     ai->RemoveShapeshift();
 
+    if (!bot->HasItemCount(6948, 1)) //Hearthstone
+    {
+        if (!bot->HasItemCount(40582, 1)) //Scourgestone
+            return false;
+
+        event = Event(event.getSource(), "scourgestone");
+    }
+
     const bool used = UseAction::Execute(event);
     if (used)
     {
+        sPlayerbotAIConfig.logEvent(ai, "UseHearthStoneAction", event.getParam(), event.getSource());
         RESET_AI_VALUE(bool, "combat::self target");
         RESET_AI_VALUE(WorldPosition, "current position");
     }
@@ -1181,25 +1277,33 @@ bool UseHearthStoneAction::Execute(Event& event)
 
 bool UseHearthStoneAction::isUseful() 
 {
+    uint32 spellId = 8690;
+    if (!bot->HasItemCount(6948, 1)) //Hearthstone
+    {
+        if (!bot->HasItemCount(40582, 1)) //Scourgestone
+            return false;
+
+        spellId = 54403;
+    }
+
     if (!ai->HasActivePlayerMaster() && ai->IsGroupLeader()) //Only hearthstone if entire group can use it.
     {
-        if (AI_VALUE2(bool, "group or", "not::spell ready::8690"))
+        if (AI_VALUE2(bool, "group or", "not::spell ready::" + std::to_string(spellId)))
             return false;
     }
-    else if (!AI_VALUE2(bool, "spell ready", "8690"))
+    else if (!AI_VALUE2(bool, "spell ready", spellId))
         return false;
 
     if (bot->InBattleGround())
         return false;
 
+    Player* master = ai->GetMaster();
+
     //Do not HS in dungeons when master is inside the dungeon or dead.
-    if (ai->GetMaster() && !WorldPosition(bot).isOverworld() && (bot->GetMapId() == ai->GetMaster()->GetMapId() || !ai->GetMaster()->IsAlive()))
+    if (master && master != bot && !WorldPosition(bot).isOverworld() && (bot->GetMapId() == master->GetMapId() || !master->IsAlive()))
         return false;
 
     if (bot->IsFlying() && WorldPosition(bot).currentHeight() > 10.0f)
-        return false;
-
-    if (!bot->HasItemCount(6948, 1))
         return false;
 
     return true;
@@ -1207,7 +1311,7 @@ bool UseHearthStoneAction::isUseful()
 
 bool UseRandomRecipeAction::isUseful()
 {
-   return !bot->IsInCombat() && !ai->HasActivePlayerMaster() && !bot->InBattleGround();
+   return !bot->IsInCombat() && !bot->InBattleGround();
 }
 
 bool UseRandomRecipeAction::Execute(Event& event)
@@ -1244,6 +1348,45 @@ bool UseRandomRecipeAction::Execute(Event& event)
 
     return didUse;
 }
+
+bool OpenRandomItemAction::isUseful()
+{
+    return !bot->IsInCombat() && !ai->HasActivePlayerMaster() && !bot->InBattleGround();
+}
+
+bool OpenRandomItemAction::Execute(Event& event)
+{
+    Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
+
+    std::list<Item*> items = AI_VALUE2(std::list<Item*>, "inventory items", "open");
+
+    std::string itemName = "";
+    for (auto& item : items)
+    {
+        if (!urand(0, 10))
+            break;
+
+        itemName = chat->formatItem(item);
+    }
+
+    if (itemName.empty())
+        return false;
+
+    if (bot->IsMoving())
+    {
+        ai->StopMoving();
+    }
+
+    Event rEvent = Event(name, itemName);
+
+    bool didUse = UseAction::Execute(rEvent);
+
+    if (didUse)
+        ai->TellPlayerNoFacing(requester, "Opening " + itemName, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, false);
+
+    return didUse;
+}
+
 
 bool UseRandomQuestItemAction::isUseful()
 {

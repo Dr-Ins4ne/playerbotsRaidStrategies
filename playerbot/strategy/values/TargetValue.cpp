@@ -35,7 +35,7 @@ bool FindNonCcTargetStrategy::IsCcTarget(Unit* attacker)
         for (Group::member_citerator itr = groupSlot.begin(); itr != groupSlot.end(); itr++)
         {
             Player *player = sObjectMgr.GetPlayer(itr->guid);
-            if (!player || !sServerFacade.IsAlive(player) || ai->IsSafe(player))
+            if (!player || !sServerFacade.IsAlive(player) || !ai->IsSafe(player))
                 continue;
 
             if (player->GetPlayerbotAI())
@@ -96,6 +96,29 @@ void FindTargetStrategy::GetPlayerCount(Unit* creature, int* tankCount, int* dps
     dpsCountCache[creature] = *dpsCount;
 }
 
+TravelTarget* LeaderTravelTargetValue::Calculate()
+{
+    TravelTarget* target = AI_VALUE(TravelTarget*, "travel target");
+
+    Player* player = ai->GetGroupMaster();
+    if (!player || player == bot || !player->GetPlayerbotAI() || !ai->IsSafe(player))
+        return target;
+
+    if (bot->GetGroup() && !ai->IsGroupLeader())
+        if (!(ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) ||
+            ai->HasStrategy("wander", BotState::BOT_STATE_NON_COMBAT)) &&
+            !ai->HasStrategy("stay", BotState::BOT_STATE_NON_COMBAT) &&
+            !ai->HasStrategy("guard", BotState::BOT_STATE_NON_COMBAT))
+            return target;
+
+     TravelTarget* leaderTarget = PAI_VALUE(TravelTarget*, "travel target");
+
+     if (!leaderTarget)
+         return target;
+
+     return leaderTarget;
+}
+
 WorldPosition LastLongMoveValue::Calculate()
 {
     LastMovement& lastMove = *context->GetValue<LastMovement&>("last movement");
@@ -112,6 +135,12 @@ WorldPosition HomeBindValue::Calculate()
     uint32 mapId;
     bot->GetHomebindLocation(x, y, z, mapId);
     return WorldPosition(mapId, x, y, z, 0.0);
+}
+
+std::string HomeBindValue::Format()
+{
+    WorldPosition pos = this->Calculate();
+    return chat->formatWorldPosition(pos);
 }
 
 void PullTargetValue::Set(Unit* unit)

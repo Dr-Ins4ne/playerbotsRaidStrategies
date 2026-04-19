@@ -31,13 +31,25 @@ bool AddAllLootAction::Execute(Event& event)
     Player* requester = event.getOwner() ? event.getOwner() : GetMaster();
     bool added = false;
 
-    std::list<ObjectGuid> gos = context->GetValue<std::list<ObjectGuid> >("nearest game objects no los")->Get();
-    for (std::list<ObjectGuid>::iterator i = gos.begin(); i != gos.end(); i++)
-        added |= AddLoot(requester, *i);
+    std::string text = event.getParam();
 
-    std::list<ObjectGuid> corpses = context->GetValue<std::list<ObjectGuid> >("nearest corpses")->Get();
-    for (std::list<ObjectGuid>::iterator i = corpses.begin(); i != corpses.end(); i++)
-        added |= AddLoot(requester, *i);
+    if (!text.empty())
+    {
+        std::list<ObjectGuid> objects = ChatHelper::parseGameobjects(text);
+
+        for (auto& guid : objects)
+            added |= AddLoot(requester, guid);
+    }
+    else
+    {
+        std::list<ObjectGuid> gos = context->GetValue<std::list<ObjectGuid>>("nearest game objects no los")->Get();
+        for (std::list<ObjectGuid>::iterator i = gos.begin(); i != gos.end(); i++)
+            added |= AddLoot(requester, *i);
+
+        std::list<ObjectGuid> corpses = context->GetValue<std::list<ObjectGuid>>("nearest corpses")->Get();
+        for (std::list<ObjectGuid>::iterator i = corpses.begin(); i != corpses.end(); i++)
+            added |= AddLoot(requester, *i);
+    }
 
     return added;
 }
@@ -56,11 +68,20 @@ bool AddAllLootAction::AddLoot(Player* requester, ObjectGuid guid)
 {
     LootObject loot(bot, guid);
 
+    if (ai->HasStrategy("debug loot", BotState::BOT_STATE_NON_COMBAT))
+        loot.Refresh(bot, guid, true);
+
     WorldObject* wo = loot.GetWorldObject(bot);
 
     if (!wo)
     {
-        ai->TellDebug(requester, "Trying to add loot from " + std::to_string(guid) + " but it doesn't exists.", "debug loot");
+        wo = ai->GetWorldObject(guid);
+
+        if (!wo)
+            ai->TellDebug(requester, "Trying to add loot from " + std::to_string(guid) + " but it doesn't exists.", "debug loot");
+        else
+            ai->TellDebug(requester, "for trying to add loot from " + ChatHelper::formatWorldobject(wo), "debug loot");
+
         return false;
     }
     else
@@ -160,7 +181,7 @@ bool AddAllLootAction::AddLoot(Player* requester, ObjectGuid guid)
                 usedBagSpacePercent = AI_VALUE(uint8, "bag space");
             }
 
-            if (usedBagSpacePercent > 99 && ai->DoSpecificAction("smart destroy"))
+            if (usedBagSpacePercent > 99 && ai->DoSpecificAction("smart destroy item"))
             {
                 usedBagSpacePercent = AI_VALUE(uint8, "bag space");
             }
@@ -277,7 +298,7 @@ bool AddGatheringLootAction::AddLoot(Player* requester, ObjectGuid guid)
                 usedBagSpacePercent = AI_VALUE(uint8, "bag space");
             }
 
-            if (usedBagSpacePercent > 99 && ai->DoSpecificAction("smart destroy"))
+            if (usedBagSpacePercent > 99 && ai->DoSpecificAction("smart destroy item"))
             {
                 usedBagSpacePercent = AI_VALUE(uint8, "bag space");
             }

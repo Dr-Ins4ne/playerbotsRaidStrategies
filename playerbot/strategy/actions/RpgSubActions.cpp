@@ -28,7 +28,11 @@ void RpgHelper::BeforeExecute()
 
 void RpgHelper::AfterExecute(bool doDelay, bool waitForGroup, std::string nextAction)
 {
-    if ((ai->HasRealPlayerMaster() || bot->GetGroup() || !urand(0,5)) && nextAction == "rpg") 
+    uint32 goToDifferentTargetChance = 10;
+    if (ai->HasRealPlayerMaster() || bot->GetGroup())
+        goToDifferentTargetChance = 30;
+
+    if (nextAction == "rpg" && urand(0, 100) < goToDifferentTargetChance)
         nextAction = "rpg cancel"; 
     
     SET_AI_VALUE(std::string, "next rpg action", nextAction);
@@ -206,7 +210,7 @@ bool RpgTaxiAction::Execute(Event& event)
     bot->ResolvePendingMount();
 #endif
 
-    sLog.outString("Bot #%d <%s> is flying from %s to %s (%zu location available)", bot->GetGUIDLow(), bot->GetName(), nodeFrom->name[0], nodeTo->name[0], nodes.size());
+    sLog.outDetail("Bot #%d <%s> is flying from %s to %s (%zu location available)", bot->GetGUIDLow(), bot->GetName(), nodeFrom->name[0], nodeTo->name[0], nodes.size());
     bot->SetMoney(money);
 
     rpg->AfterExecute();
@@ -215,7 +219,6 @@ bool RpgTaxiAction::Execute(Event& event)
 
     return true;
 }
-
 
 bool RpgDiscoverAction::Execute(Event& event)
 {
@@ -268,6 +271,31 @@ bool RpgHealAction::Execute(Event& event)
 
     return retVal;
 }
+
+bool RpgUseAction::isUseful()
+{
+    GuidPosition guidP = rpg->guidP();
+
+    switch (guidP.GetEntry())
+    {
+        case 190767: {
+
+            //Do not get in cart if miner is moving some other bot. (This is a core bug, minecart will head to other more distant miner if it exists).
+            Creature* creature = nullptr;
+            MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*bot, 28841, true, false, 500.0f, true);
+            MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(creature, creature_check);
+            Cell::VisitGridObjects(bot, searcher, 500.0f);
+
+            if (!creature || guidP.distance(creature) > 300.0f)
+                return true;
+
+            return false;
+        }            
+    }
+
+    return true;
+}
+
 
 bool RpgAIChatAction::isUseful()
 {
@@ -730,6 +758,9 @@ bool RpgEnchantAction::Execute(Event& event)
     if (!player)
         return false;
 
+    if (!ai->IsSafe(player))
+        return false;
+
     std::list<Item*> items = AI_VALUE(std::list<Item*>, "items useful to enchant");
 
     if (items.empty())
@@ -885,4 +916,23 @@ bool RpgItemAction::Execute(Event& event)
     }
 
     return used;
+}
+
+bool RpgSpellClickAction::Execute(Event& event)
+{
+    rpg->BeforeExecute();
+
+    GuidPosition guidP = rpg->guidP();
+
+#ifdef MANGOSBOT_TWO
+    if (!guidP.IsCreatureOrVehicle())
+#endif
+        return false;
+   
+    bool result = ai->HandleSpellClick(guidP);
+    
+    rpg->AfterExecute(result);
+    DoDelay();
+    
+    return result;
 }

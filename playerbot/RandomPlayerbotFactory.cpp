@@ -22,30 +22,9 @@
 #endif
 #endif
 
+#include <random>
 
 std::map<uint8, std::vector<uint8> > RandomPlayerbotFactory::availableRaces;
-
-constexpr RandomPlayerbotFactory::NameRaceAndGender RandomPlayerbotFactory::CombineRaceAndGender(uint8 gender, uint8 race)
-{
-    switch(race)
-    {
-    case RACE_HUMAN:    return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::GenericMale)  + gender);
-    case RACE_ORC:      return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::OrcMale)      + gender);
-    case RACE_DWARF:    return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::DwarfMale)    + gender);
-    case RACE_NIGHTELF: return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::NightelfMale) + gender);
-    case RACE_UNDEAD:   return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::GenericMale)  + gender);
-    case RACE_TAUREN:   return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::TaurenMale)   + gender);
-    case RACE_GNOME:    return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::GnomeMale)    + gender);
-    case RACE_TROLL:    return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::TrollMale)    + gender);
-#ifndef MANGOSBOT_ZERO
-    case RACE_DRAENEI:  return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::DraeneiMale)  + gender);
-    case RACE_BLOODELF: return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::BloodelfMale) + gender);
-#endif
-    default:
-        sLog.outError("The race with ID %d does not have a naming category", race);
-        return static_cast<NameRaceAndGender>(static_cast<uint8>(NameRaceAndGender::GenericMale) + gender);
-    }
-}
 
 RandomPlayerbotFactory::RandomPlayerbotFactory(uint32 accountId) : accountId(accountId)
 {
@@ -154,14 +133,49 @@ bool RandomPlayerbotFactory::isAvailableRace(uint8 cls, uint8 race)
     return std::find(availableRaces[cls].begin(), availableRaces[cls].end(), race) != availableRaces[cls].end();
 }
 
-uint8 RandomPlayerbotFactory::GetRandomClass()
+bool RandomPlayerbotFactory::isAvailableRole(uint8 cls, BotRoles role)
+{
+    if (role == BotRoles::BOT_ROLE_NONE)
+        return true;
+
+    switch (cls)
+    {
+        case CLASS_WARRIOR:
+#ifdef MANGOSBOT_TWO
+        case CLASS_DEATH_KNIGHT:
+#endif
+            return role == BotRoles::BOT_ROLE_TANK || role == BotRoles::BOT_ROLE_DPS;
+        case CLASS_PALADIN:
+        case CLASS_DRUID:
+            return true;
+        case CLASS_HUNTER:
+        case CLASS_ROGUE:
+        case CLASS_MAGE:
+        case CLASS_WARLOCK:
+            return role == BotRoles::BOT_ROLE_DPS;
+        case CLASS_PRIEST:
+        case CLASS_SHAMAN:
+            return role == BotRoles::BOT_ROLE_HEALER || role == BotRoles::BOT_ROLE_DPS;
+        default:
+            return false;
+    }
+}
+
+uint8 RandomPlayerbotFactory::GetRandomClass(uint8 useRace, BotRoles role)
 {
     uint32 classProb[MAX_CLASSES] = { 0 };
 
+
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
+        if (useRace && useRace != race)
+            continue;
+
         for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
         {
+            if (!isAvailableRole(cls, role))
+                continue;
+
             classProb[cls] += sPlayerbotAIConfig.classRaceProbability[cls][race];
         }
     }
@@ -170,6 +184,9 @@ uint8 RandomPlayerbotFactory::GetRandomClass()
 
     for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
     {
+        if (!isAvailableRole(cls, role))
+            continue;
+
         if (classProb[cls] > 0 && randomProb < classProb[cls])
             return cls;
 
@@ -178,6 +195,9 @@ uint8 RandomPlayerbotFactory::GetRandomClass()
 
     for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
     {
+        if (!isAvailableRole(cls, role))
+            continue;
+
         if (classProb[cls] > 0)
             return cls;
     }
@@ -185,11 +205,29 @@ uint8 RandomPlayerbotFactory::GetRandomClass()
     return 1;
 }
 
-uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls)
+bool RandomPlayerbotFactory::isRaceForTeam(uint8 race, Team team)
+{
+    if (team == Team::TEAM_BOTH_ALLOWED)
+        return true;
+
+    uint32 raceBit = 1 << (race - 1);
+
+    if (team == Team::ALLIANCE && (raceBit & RACEMASK_ALLIANCE))
+        return true;
+
+    if (team == Team::HORDE && (raceBit & RACEMASK_HORDE))
+        return true;
+
+    return false;
+}
+
+uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls, Team team)
 {
     uint32 totalClassProb = 0;
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
+        if (!isRaceForTeam(race,team))
+            continue;
         totalClassProb += sPlayerbotAIConfig.classRaceProbability[cls][race];
     }
 
@@ -197,6 +235,9 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls)
 
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
+        if (!isRaceForTeam(race, team))
+            continue;
+
         if (sPlayerbotAIConfig.classRaceProbability[cls][race] > 0 && randomProb < sPlayerbotAIConfig.classRaceProbability[cls][race])
             return race;
 
@@ -206,13 +247,13 @@ uint8 RandomPlayerbotFactory::GetRandomRace(uint8 cls)
     return availableRaces[cls].front();
 }
 
-bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, std::unordered_map<NameRaceAndGender, std::vector<std::string>>& names)
+bool RandomPlayerbotFactory::CreateRandomBot(uint8 cls, std::unordered_map<NameRaceAndGender, std::vector<std::string>>& names, uint8 inputRace)
 {
     sLog.outDebug( "Creating new random bot for class %d", cls);
 
     uint8 gender = rand() % 2 ? GENDER_MALE : GENDER_FEMALE;
 
-    uint8 race = GetRandomRace(cls);
+    uint8 race = inputRace == 0 ? GetRandomRace(cls) : inputRace;
 
     NameRaceAndGender raceAndGender = CombineRaceAndGender(gender, race);
 
@@ -492,9 +533,30 @@ void RandomPlayerbotFactory::CreateRandomBots()
             } while (results->NextRow());
         }
 
-        CharacterDatabase.Execute("DELETE FROM ai_playerbot_random_bots");
+        CharacterDatabase.Execute("DELETE FROM ai_playerbot_random_bots WHERE bot NOT IN (SELECT guid FROM characters)");
         sLog.outString("Random bot characters deleted");
     }
+
+    if (!sPlayerbotAIConfig.randomBotAutoCreate)
+    {
+        for (uint32 accountNumber = 0; accountNumber < sPlayerbotAIConfig.randomBotAccountCount; ++accountNumber)
+        {
+            std::ostringstream out; out << sPlayerbotAIConfig.randomBotAccountPrefix << accountNumber;
+            std::string accountName = out.str();
+
+            auto results = LoginDatabase.PQuery("SELECT id FROM account where username = '%s'", accountName.c_str());
+            if (!results)
+                continue;
+
+            Field* fields = results->Fetch();
+            uint32 accountId = fields[0].GetUInt32();
+
+            sPlayerbotAIConfig.randomBotAccounts.push_back(accountId);
+        }
+
+        return;
+    }
+
     int totalAccCount = sPlayerbotAIConfig.randomBotAccountCount;
     sLog.outString("Creating random bot accounts...");
 
@@ -654,6 +716,11 @@ void RandomPlayerbotFactory::CreateRandomBots()
     sLog.outString("Creating random bot characters...");
     uint32 botsCreated = 0;
     BarGoLink bar1(totalCharCount);
+
+
+    // Shallow copy of the fixed config so we can modify it
+    std::map<std::pair<uint8, uint8>, uint32> remaining = sPlayerbotAIConfig.fixedClassRaceCounts;
+
     for (uint32 accountNumber = 0; accountNumber < sPlayerbotAIConfig.randomBotAccountCount; ++accountNumber)
     {
         std::ostringstream out; out << sPlayerbotAIConfig.randomBotAccountPrefix << accountNumber;
@@ -679,32 +746,108 @@ void RandomPlayerbotFactory::CreateRandomBots()
             continue;
         }
 
-        RandomPlayerbotFactory factory(accountId);
-        for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES - count; ++cls)
-        {
-            // skip nonexistent classes
-            if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
-                continue;
+	RandomPlayerbotFactory factory(accountId);
+	if (sPlayerbotAIConfig.useFixedClassRaceCounts)
+	{
+#ifdef MANGOSBOT_TWO
+	    uint32 maxAllowed = 10 - count;
+#else
+	    uint32 maxAllowed = 9 - count;
+#endif
+	    uint32 created = 0;
+
+	    while (!remaining.empty() && created < maxAllowed)
+	    {
+	        std::vector<std::pair<uint8, uint8>> shuffledKeys;
+	        for (const auto& entry : remaining)
+	            shuffledKeys.push_back(entry.first);
+
+	        // Shuffle the keys of the map
+	        std::random_device rnd;
+		std::mt19937 rng(rnd()); // Mersenne Twister RNG
+		std::shuffle(shuffledKeys.begin(), shuffledKeys.end(), rng);
+
+	        for (const auto& key : shuffledKeys)
+	        {
+	            if (created >= maxAllowed)
+	                break;
+
+	            uint8 cls = key.first;
+	            uint8 race = key.second;
+
+	            if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
+	                continue;
 
 #ifdef MANGOSBOT_TWO
-            if (cls != 10)
+	            if (cls == 10)
+	                continue;
 #else
-            if (cls != 10 && cls != 6)
+	            if (cls == 10 || cls == 6)
+	                continue;
 #endif
+
+	            if (factory.CreateRandomBot(cls, freeNames, race))
+	            {
+	                created++;
+	                botsCreated++;
+	                bar1.step();
+	                if (--remaining[key] == 0)
+	                    remaining.erase(key);
+	            }
+	        }
+	    }
+	}
+	else
+	{
+            for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES - count; ++cls)
             {
-                uint8 rclss = factory.GetRandomClass();
-                botsCreated++;
-                factory.CreateRandomBot(rclss, freeNames);
-                bar1.step();
+                // skip nonexistent classes
+                if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
+                    continue;
+
+#ifdef MANGOSBOT_TWO
+                if (cls != 10)
+#else
+                if (cls != 10 && cls != 6)
+#endif
+                {
+                    uint8 rclss = factory.GetRandomClass();
+                    botsCreated++;
+                    factory.CreateRandomBot(rclss, freeNames);
+                    bar1.step();
+                }
             }
-        }
+	}
 
         totalRandomBotChars += sAccountMgr.GetCharactersCount(accountId);
     }
+    if (sPlayerbotAIConfig.useFixedClassRaceCounts && !remaining.empty())
+    {
+	sLog.outError("Unable to create all requested fixed class/race bots due to account character limits.");
+	sLog.outError("The following class/race combination(s) were left uncreated:");
+
+	uint32 totalCount = 0;
+	for(const auto& entry : remaining)
+	{
+	    uint8 cls = entry.first.first;
+	    uint8 race = entry.first.second;
+	    uint32 count = entry.second;
+	    totalCount += count;
+
+	    sLog.outError(" - Class %u, Race %u: %u bots remaining", cls, race, count);
+	}
+#ifdef MANGOSBOT_TWO
+	uint32 missingAccounts = (totalCount + 9) / 10;
+#else
+        uint32 missingAccounts = (totalCount + 8) / 9;
+#endif
+	sLog.outError("You need at least %u additional account(s) to fill the remaining fixed class/race combinations.", missingAccounts);
+    }
+
 
     if (!botsCreated)
     {
-        sLog.outString("No new random bots needed accounts: %zu, bots: %d.", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars);
+	    sLog.outString("No new random bots needed. Accounts: %zu, bots: %d.", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars);
 
         return;
     }
@@ -737,7 +880,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
         delete player;
         delete session;
     }
-    sLog.outString("%zu random bot accounts with %d characters available", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars);
+    sLog.outString("%zu random bot accounts with %d characters available", sPlayerbotAIConfig.randomBotAccounts.size(), totalRandomBotChars+botsCreated);
 }
 
 

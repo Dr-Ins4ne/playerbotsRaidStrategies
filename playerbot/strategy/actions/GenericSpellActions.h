@@ -22,7 +22,7 @@ namespace ai
     protected:
         const uint32& GetSpellID() const { return spellId; }
         const std::string& GetSpellName() const { return spellName; }
-        void SetSpellName(const std::string& name, std::string spellIDContextName = "spell id");
+        void SetSpellName(const std::string& name, std::string spellIDContextName = "spell id", bool force = false);
 
         Unit* GetTarget() override;
         virtual std::string GetTargetName() override { return "current target"; }
@@ -359,7 +359,7 @@ namespace ai
         virtual std::string getName() override { return "remove " + name; }
         virtual bool isUseful() override;
         virtual bool Execute(Event& event) override;
-
+        virtual bool isUsefulWhenStunned() override { return true; }
     private:
         std::string name;
     };
@@ -469,7 +469,8 @@ namespace ai
         CastVehicleSpellAction(PlayerbotAI* ai, std::string spell) : CastSpellAction(ai, spell)
         {
             range = 120.0f;
-            SetSpellName(spell, "vehicle spell id");
+            speed = 30.0f;
+            SetSpellName(spell, "vehicle spell id", !GetSpellID());
         }
 
         virtual bool Execute(Event& event) override;
@@ -480,6 +481,8 @@ namespace ai
         virtual ActionThreatType getThreatType() override { return ActionThreatType::ACTION_THREAT_NONE; }
         virtual std::string GetTargetName() override { return "current target"; }
         virtual std::string GetReachActionName() override { return ""; }
+        float speed;
+        bool needTurn = true;
     };
 
     class CastHurlBoulderAction : public CastVehicleSpellAction
@@ -540,5 +543,74 @@ namespace ai
     {
     public:
         CastBladeSalvoAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "blade salvo") {}
+    };
+
+    class CastDeliverStolenHorseAction : public CastVehicleSpellAction
+    {
+    public:
+        CastDeliverStolenHorseAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "deliver stolen horse") {}
+    protected:
+        virtual std::string GetTargetName() override { return "self target"; }
+    };
+
+    class CastHorsemansCallAction : public CastVehicleSpellAction
+    {
+    public:
+        CastHorsemansCallAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "horseman call") {
+            range = 120.0f;
+            SetSpellName("Horseman's Call", "vehicle spell id", true);
+        }
+    protected:
+        virtual std::string GetTargetName() override { return "self target"; }
+    };
+
+    class CastScarletCannonAction : public CastVehicleSpellAction
+    {
+    public:
+        CastScarletCannonAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "scarlet cannon") { speed = 3000.0f; }
+    protected:
+        virtual std::string GetTargetName() override { return "grind target"; }
+    };
+
+    class CastElectroMagneticPulseAction : public CastVehicleSpellAction
+    {
+    public:
+        CastElectroMagneticPulseAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "electro - magnetic pulse") { range = 20.0f; }
+    protected:
+        virtual std::string GetTargetName() override { return "grind target"; }
+    };
+
+    class CastSkeletalGryphonEscapeAction : public CastVehicleSpellAction
+    {
+    public:
+        CastSkeletalGryphonEscapeAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "skeletal gryphon escape") {}
+    protected:
+        virtual std::string GetTargetName() override { return "self target"; }
+    };
+
+    class CastFrozenDeathboltAction : public CastVehicleSpellAction
+    {
+    public:
+        CastFrozenDeathboltAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "frozen deathbolt")
+        {
+            needTurn = false;
+            speed = 3000.0f;
+        };
+        virtual bool isPossible() override;
+    protected:
+        virtual std::string GetTargetName() override { return "grind target"; }
+    };
+
+    class CastDevourHumanoidAction : public CastVehicleSpellAction
+    {
+    public:
+        CastDevourHumanoidAction(PlayerbotAI* ai) : CastVehicleSpellAction(ai, "devour humanoid")
+        {
+            range = 15.0f;
+            needTurn = false;
+        }
+        virtual bool isPossible() override;
+    protected:
+        virtual std::string GetTargetName() override { return "grind target"; }
     };
 }

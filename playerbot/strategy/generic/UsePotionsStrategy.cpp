@@ -24,7 +24,7 @@ private:
 
 UsePotionsStrategy::UsePotionsStrategy(PlayerbotAI* ai) : Strategy(ai)
 {
-    actionNodeFactories.Add(new UsePotionsStrategyActionNodeFactory());
+    actionNodeFactories.Add(std::make_unique<UsePotionsStrategyActionNodeFactory>());
 }
 
 void UsePotionsStrategy::InitCombatTriggers(std::list<TriggerNode*> &triggers)
@@ -46,6 +46,10 @@ void UsePotionsStrategy::InitCombatTriggers(std::list<TriggerNode*> &triggers)
     triggers.push_back(new TriggerNode(
         "low mana",
         NextAction::array(0, new NextAction("dark rune", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "has poison debuff",
+        NextAction::array(0, new NextAction("anti-venom", ACTION_DISPEL), NULL)));
 }
 
 void UsePotionsStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)

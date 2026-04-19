@@ -40,6 +40,7 @@ namespace ai
         QuestObjective2 = 1 << 2,
         QuestObjective3 = 1 << 3,
         QuestObjective4 = 1 << 4,
+        QuestAllObjective = QuestObjective1 | QuestObjective2 | QuestObjective3 | QuestObjective4,
         QuestTaker = 1 << 5,
         GenericRpg = 1 << 6,
         Trainer = 1 << 7,
@@ -121,7 +122,7 @@ namespace ai
     public:
         FutureTravelDestinationsValue(PlayerbotAI* ai, std::string name = "future travel destinations") : ManualSetValue<FutureDestinations*>(ai, new FutureDestinations, name) {}
 
-        ~FutureTravelDestinationsValue() { delete value; }
+        ~FutureTravelDestinationsValue() override { delete value; }
     };
 
     class NoActiveTravelDestinationsValue : public ManualSetValue<bool>, public Qualified
@@ -138,6 +139,14 @@ namespace ai
         virtual bool Calculate() override;
     };
 
+    class TravelTargetReadyValue : public BoolCalculatedValue
+    {
+    public:
+        TravelTargetReadyValue(PlayerbotAI* ai, std::string name = "travel target ready", int checkInterval = 5) : BoolCalculatedValue(ai, name, checkInterval) {};
+
+        virtual bool Calculate() override;
+    };    
+
     class TravelTargetTravelingValue : public BoolCalculatedValue
     {
     public:
@@ -145,6 +154,14 @@ namespace ai
 
         virtual bool Calculate() override;
     };    
+
+    class TravelTargetWorkingValue : public BoolCalculatedValue
+    {
+    public:
+        TravelTargetWorkingValue(PlayerbotAI* ai, std::string name = "travel target working", int checkInterval = 5) : BoolCalculatedValue(ai, name, checkInterval) {};
+
+        virtual bool Calculate() override;
+    };
 
     class NeedTravelPurposeValue : public BoolCalculatedValue, public Qualified
     {

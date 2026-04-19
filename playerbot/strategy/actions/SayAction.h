@@ -9,9 +9,10 @@ namespace ai
     {
     public:
         SayAction(PlayerbotAI* ai);
-        virtual bool Execute(Event& event);
-        virtual bool isUseful();
-        virtual std::string getName() { return "say::" + qualifier; }
+        virtual bool Execute(Event& event) override;
+        virtual bool isUseful() override;
+        virtual std::string getName() override { return "say::" + qualifier; }
+        virtual bool isUsefulWhenStunned() override { return true; }
 
     private:
     };
@@ -24,13 +25,14 @@ namespace ai
     {
     public:
         ChatReplyAction(PlayerbotAI* ai) : Action(ai, "chat message") {}
-        virtual bool Execute(Event& event) { return true; }
-        bool isUseful();
+        virtual bool Execute(Event& event) override { return true; }
+        bool isUseful() override;
+        virtual bool isUsefulWhenStunned() override { return true; }
 
         static void GetAIChatPlaceholders(std::map<std::string, std::string>& placeholders, Unit* sender = nullptr, Unit* receiver = nullptr);
         static void GetAIChatPlaceholders(std::map<std::string, std::string>& placeholders, Unit* unit, const std::string preFix = "bot", Player* observer = nullptr);
         static WorldPacket GetPacketTemplate(Opcodes op, uint32 type, Unit* sender, Unit* target = nullptr, std::string channelName = "");
-        static delayedPackets LinesToPackets(const std::vector<std::string>& lines, WorldPacket packetTemplate, bool debug = false, uint32 MsPerChar = 0, WorldPacket emoteTemplate = WorldPacket());
+        static delayedPackets LinesToPackets(const std::vector<std::string>& lines, WorldPacket packetTemplate, bool debug = false, uint32 MsPerChar = 0, WorldPacket emoteTemplate = WorldPacket(), uint32 timeDiff = 0);
 
         static delayedPackets GenerateResponsePackets(const std::string json
             , const WorldPacket chatTemplate, const WorldPacket emoteTemplate, const WorldPacket systemTemplate, const std::string startPattern, const std::string endPattern, const std::string deletePattern, const std::string splitPattern, bool debug = false);
@@ -42,5 +44,24 @@ namespace ai
         static bool HandleLFGQuestsReply(Player* bot, ChatChannelSource chatChannelSource, std::string msg, std::string name);
         static bool SendGeneralResponse(Player* bot, ChatChannelSource chatChannelSource, std::string responseMessage, std::string name);
         static std::string GenerateReplyMessage(Player* bot, std::string incomingMessage, uint32 guid1, std::string name);
+    };
+
+    class SpeakAction : public Action, public Qualified
+    {
+    public:
+        SpeakAction(PlayerbotAI* ai) : Action(ai, "speak"), Qualified() {};
+        virtual bool Execute(Event& event) override;
+        virtual bool isUsefulWhenStunned() override { return true; }
+
+#ifdef GenerateBotHelp
+        virtual std::string GetHelpName() { return "speak"; } //Must equal iternal name
+        virtual std::string GetHelpDescription()
+        {
+            return "This action wil make bots speak a certain line\n"
+                   "Use \\p, \\1 \\y ect to make bots use different channels.";
+        }
+        virtual std::vector<std::string> GetUsedActions() { return {}; }
+        virtual std::vector<std::string> GetUsedValues() { return {""}; }
+#endif    
     };
 }

@@ -3,10 +3,17 @@
 #include "Config/Config.h"
 #include "Talentspec.h"
 #include "Globals/SharedDefines.h"
+#include "SystemConfig.h"
 
 class Player;
 class PlayerbotMgr;
 class ChatHandler;
+
+#if PLATFORM == PLATFORM_WINDOWS
+inline std::string _D_AIPLAYERBOT_CONFIG = "aiplayerbot.conf";
+#else
+inline std::string _D_AIPLAYERBOT_CONFIG = SYSCONFDIR "aiplayerbot.conf";
+#endif
 
 enum class BotCheatMask : uint32
 {
@@ -23,7 +30,8 @@ enum class BotCheatMask : uint32
     attackspeed = 1 << 9,
     breath = 1 << 10,
     glyph = 1 << 11,
-    maxMask = 1 << 12
+    quest = 1 << 12,    
+    maxMask = 1 << 13
 };
 
 enum class BotAutoLogin : uint32
@@ -110,7 +118,7 @@ public:
         errorDelay, rpgDelay, sitDelay, returnDelay, lootDelay;
     float sightDistance, spellDistance, reactDistance, grindDistance, lootDistance, groupMemberLootDistance, groupMemberLootDistanceWithActiveMaster,
         gatheringDistance, groupMemberGatheringDistance, groupMemberGatheringDistanceWithActiveMaster, shootDistance,
-        fleeDistance, tooCloseDistance, meleeDistance, followDistance, raidFollowDistance, whisperDistance, contactDistance,
+        fleeDistance, tooCloseDistance, meleeDistance, followDistance, raidFollowDistance, wanderMinDistance, wanderMaxDistance, whisperDistance, contactDistance,
         aoeRadius, rpgDistance, targetPosRecalcDistance, farDistance, healDistance, aggroDistance, proximityDistance, maxFreeMoveDistance, freeMoveDelay;
     uint32 criticalHealth, lowHealth, mediumHealth, almostFullHealth;
     uint32 lowMana, mediumMana;
@@ -129,8 +137,10 @@ public:
     std::list<std::string> toggleAlwaysOnlineAccounts;
     std::list<std::string> toggleAlwaysOnlineChars;
     bool enableRandomTeleports;
+    bool enableMinimalMove;
     uint32 randomBotTeleportDistance;
     bool randomBotTeleportNearPlayer;
+    uint32 transportTeleportType;
     uint32 randomBotTeleportNearPlayerMaxAmount;
     float randomBotTeleportNearPlayerMaxAmountRadius;
     uint32 randomBotTeleportMinInterval, randomBotTeleportMaxInterval;
@@ -145,26 +155,29 @@ public:
     std::list<uint32> randomGearWhitelist;
     bool randomGearProgression;
     float randomGearLoweringChance;
+    bool rollBadItemsWithPlayer;
     float randomBotMaxLevelChance;
     float randomBotRpgChance;
     float usePotionChance;
     float attackEmoteChance;
+    bool randomBotAutoCreate;
     uint32 minRandomBots, maxRandomBots;
     uint32 randomBotUpdateInterval, randomBotCountChangeMinInterval, randomBotCountChangeMaxInterval;
-    uint32 loginBoostPercentage;
     bool randomBotTimedLogout, randomBotTimedOffline;
     uint32 minRandomBotInWorldTime, maxRandomBotInWorldTime;
     uint32 minRandomBotRandomizeTime, maxRandomBotRandomizeTime;
     uint32 minRandomBotChangeStrategyTime, maxRandomBotChangeStrategyTime;
     uint32 minRandomBotReviveTime, maxRandomBotReviveTime;
     uint32 minRandomBotPvpTime, maxRandomBotPvpTime;
-    uint32 randomBotsPerInterval, randomBotsMaxLoginsPerInterval;
+    uint32 randomBotsMaxLoginsPerInterval;
+    uint32 randomBotsPerInterval;
     uint32 minRandomBotsPriceChangeInterval, maxRandomBotsPriceChangeInterval;
     //Auction house settings
     bool shouldQueryAHListingsOutsideOfAH;
     std::list<uint32> ahOverVendorItemIds;
     std::list<uint32> vendorOverAHItemIds;
     bool botCheckAllAuctionListings;
+    bool botsSaveEpics;
     //
     bool randomBotJoinLfg;
     bool logRandomBotJoinLfg;
@@ -184,6 +197,9 @@ public:
     std::string premadeLevelSpec[MAX_CLASSES][10][91]; //lvl 10 - 100
     uint32 classRaceProbabilityTotal;
     uint32 classRaceProbability[MAX_CLASSES][MAX_RACES];
+    bool useFixedClassRaceCounts;
+    using ClassRacePair = std::pair<uint8, uint8>;
+    std::map<ClassRacePair, uint32> fixedClassRaceCounts;
     uint32 levelProbability[DEFAULT_MAX_LEVEL + 1];
     ClassSpecs classSpecs[MAX_CLASSES];
     GlyphPrioritySpecMap glyphPriorityMap[MAX_CLASSES];
@@ -204,6 +220,7 @@ public:
     bool boostFollow;
     bool turnInRpg;
     bool globalSoundEffects;
+    bool shareTargets;
     std::list<uint32> randomBotGuilds;
 	std::list<uint32> pvpProhibitedZoneIds;
     bool enableGreet;
@@ -217,6 +234,9 @@ public:
     float playerbotsXPrate;
     bool disableBotOptimizations;
     bool disableActivityPriorities;
+    bool forceActiveWhenNearPlayer;
+    bool limitCombatActivity;
+    bool guildOrderAlwaysActive;
     uint32 botActiveAlone;
     uint32 diffWithPlayer;
     uint32 diffEmpty;
@@ -230,6 +250,9 @@ public:
     bool randomBotFormGuild;
     bool randomBotRandomPassword;
     bool inviteChat;
+    bool enableOffSpecStrategies;
+    bool useWanderAsDefaultFollowStrategy;
+    std::string defaultFormation;
 
     uint32 guildMaxBotLimit;
 
@@ -348,10 +371,10 @@ public:
 
     std::unordered_map <std::string, std::pair<FILE*, bool>> logFiles;
 
-    std::list<std::string> botCheats;
     uint32 botCheatMask = 0;
+    uint32 rndBotCheatMask = 0;
 
-    std::vector<std::string> BotCheatMaskName = { "taxi", "gold", "health", "mana", "power", "item", "cooldown", "repair", "movespeed", "attackspeed", "breath", "glyph", "maxMask" };
+    std::vector<std::string> BotCheatMaskName = { "taxi", "gold", "health", "mana", "power", "item", "cooldown", "repair", "movespeed", "attackspeed", "breath", "glyph", "quest", "maxMask" };
 
     struct worldBuff{
         uint32 spellId;
@@ -377,6 +400,9 @@ public:
     std::set<uint32> llmBlockedReplyChannels;
     //LM END
 
+    uint32 EatDrinkMinDistance = 5;
+    uint32 EatDrinkMaxDistance = 1000;
+
     std::string GetValue(std::string name);
     void SetValue(std::string name, std::string value);
 
@@ -396,6 +422,7 @@ public:
 
 private:
     void LoadTalentSpecs();
+    void LoadLLMDefaultPrompts(const std::string& fileName);
 
     Config config;
 };

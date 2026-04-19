@@ -7,19 +7,21 @@
 
 namespace ai
 {
+    const std::vector<uint32> travelPartitions = { 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 6000, 10000, 50000, 100000, 500000 };
+
     class ChooseTravelTargetAction : public Action {
     public:
         ChooseTravelTargetAction(PlayerbotAI* ai, std::string name = "choose travel target") : Action(ai, name) {}
 
         virtual bool Execute(Event& event) override;
         virtual bool isUseful() override;
+        static void ReportTravelTarget(Player* bot, Player* requester, TravelTarget* newTarget, TravelTarget* oldTarget);
     protected:
-        void setNewTarget(Player* requester, TravelTarget* newTarget, TravelTarget* oldTarget);
-        void ReportTravelTarget(Player* requester, TravelTarget* newTarget, TravelTarget* oldTarget);
+        void setNewTarget(Player* requester, TravelTarget* newTarget, TravelTarget* oldTarget);        
 
         bool SetBestTarget(Player* requester, TravelTarget* target, PartitionedTravelList& travelPartitions, bool onlyActive = true);
     public:
-        static DestinationList FindDestination(PlayerTravelInfo info, std::string name, bool zones = true, bool npcs = true, bool quests = true, bool mobs = true, bool bosses = true);
+        static DestinationList FindDestination(PlayerTravelInfo info, std::string name, bool zones = true, bool npcs = true, bool quests = true, bool mobs = true, bool bosses = true, bool gather = true);
     private:
 #ifdef GenerateBotHelp
         virtual std::string GetHelpName() { return "choose travel target"; } //Must equal iternal name
@@ -31,7 +33,7 @@ namespace ai
                 "The current destination or those of group members are also options.";
         }
         virtual std::vector<std::string> GetUsedActions() { return {}; }
-        virtual std::vector<std::string> GetUsedValues() { return { "travel target", "group or", "should sell","can sell","can ah sell","should repair","can repair","following party","near leader","should get money","can fight equal","can fight elite","can fight boss","can free move to","rpg target","attack target",}; }
+        virtual std::vector<std::string> GetUsedValues() { return { "travel target", "group or", "should sell","can sell","can ah sell","should repair","can repair","following party","near leader","should get money","can fight equal","can fight elite","can fight boss","can free move","rpg target","attack target",}; }
 #endif 
     };
 
@@ -62,8 +64,6 @@ namespace ai
     class RequestTravelTargetAction : public Action, public Qualified {
     public:
         RequestTravelTargetAction(PlayerbotAI* ai, std::string name = "request travel target") : Action(ai, name), Qualified() {}
-    protected:
-        const std::vector<uint32> travelPartitions = { 100, 250, 500, 1000, 2000, 3000, 4000, 5000, 6000, 10000, 50000, 100000, 500000 };
     private:
         virtual bool Execute(Event& event) override;
         virtual bool isUseful() override;

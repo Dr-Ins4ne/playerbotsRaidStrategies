@@ -361,7 +361,7 @@ namespace ai
 		int32 GetExpiredTime() const { return WorldTimer::getMSTime() - startTime; }
 
 		void SetRetry(bool isMove, uint32 newCount = 0) { if (isMove) moveRetryCount = newCount; else extendRetryCount = newCount; }
-		bool IsMaxRetry(bool isMove) { return isMove ? (moveRetryCount > 10) : (extendRetryCount > 5); }
+		bool IsMaxRetry(bool isMove) { return isMove ? (moveRetryCount > 10) : (extendRetryCount >= 5); }
 
 		void SetTarget(TravelDestination* tDestination1, WorldPosition* wPosition1);
 		
@@ -404,6 +404,7 @@ namespace ai
 	{
 	public:
 		TravelMgr() {};
+        ~TravelMgr() { Clear(); };
 		void LoadQuestTravelTable();
 
 		void GetPopulatedGrids();
@@ -448,8 +449,20 @@ namespace ai
 		template<class T>
 		T* AddDestination(const int32 entry, const TravelDestinationPurpose purpose, const uint32 questId = 0) {
 			uint32 id = questId ? questId : entry;
-			if(destinationMap[purpose].find(id) != destinationMap[purpose].end())
-					return (T*)destinationMap[purpose][id].front();
+
+			if (questId)
+			{
+				if (destinationMap[purpose].find(questId) != destinationMap[purpose].end())
+					for(auto& dest : destinationMap[purpose][questId])
+						if(dest->GetEntry() == entry)
+							return (T*)dest;
+			}
+			else
+			{
+				if (destinationMap[purpose].find(entry) != destinationMap[purpose].end())
+					for (auto& dest : destinationMap[purpose][entry])
+						return (T*)destinationMap[purpose][entry].front();
+			}
 
 			destinationMap[purpose][id].push_back(new T(purpose, questId, entry));
 

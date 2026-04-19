@@ -13,6 +13,7 @@ bool DropQuestAction::Execute(Event& event)
 
     PlayerbotChatHandler handler(GetMaster());
     uint32 entry = handler.extractQuestId(link);
+    bool dropped = false;
 
     // remove all quest entries for 'entry' from quest log
     for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
@@ -22,25 +23,28 @@ bool DropQuestAction::Execute(Event& event)
         if (!quest)
             continue;
 
-        if (logQuest == entry || link.find(quest->GetTitle()) != std::string::npos)
+        if (logQuest == entry || link.find(quest->GetTitle()) != std::string::npos || link == "all")
         {
             bot->SetQuestSlot(slot, 0);
 
             // we ignore unequippable quest items in this case, its' still be equipped
             bot->TakeQuestSourceItem(logQuest, false);
             entry = logQuest;
-            break;
+
+            bot->SetQuestStatus(entry, QUEST_STATUS_NONE);
+            bot->getQuestStatusMap()[entry].m_rewarded = false;
+
+            dropped = true;
+
+            if (link != "all")
+                break;
         }
     }
 
-    if (!entry)
-        return false;
+    if(dropped)
+        ai->TellPlayer(requester, BOT_TEXT("quest_remove"));
 
-    bot->SetQuestStatus(entry, QUEST_STATUS_NONE);
-    bot->getQuestStatusMap()[entry].m_rewarded = false;
-
-    ai->TellPlayer(requester, BOT_TEXT("quest_remove"));
-    return true;
+    return dropped;
 }
 
 bool CleanQuestLogAction::Execute(Event& event)
@@ -112,34 +116,36 @@ void CleanQuestLogAction::DropQuestType(Player* requester, uint8 &numQuest, uint
         if (!quest)
             continue;
 
-        if (quest->GetRequiredClasses()) //Do not drop class specific quests
-            continue;
-
-        if (wantNum == 100)
-            numQuest++;
-
-        int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
-        if (lowLevelDiff < 0 || bot->GetLevel() <= bot->GetQuestLevelForPlayer(quest) + uint32(lowLevelDiff)) //Quest is not gray
+        if (bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
         {
-            if (bot->GetLevel() + 5 > bot->GetQuestLevelForPlayer(quest))                                     //Quest is not red
-                if (!isGreen)
+            if (quest->GetRequiredClasses()) //Do not drop class specific quests
+                continue;
+
+            if (wantNum == 100)
+                numQuest++;
+
+            int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
+            if (lowLevelDiff < 0 || bot->GetLevel() <= bot->GetQuestLevelForPlayer(quest) + uint32(lowLevelDiff)) //Quest is not gray
+            {
+                if (bot->GetLevel() + 5 > bot->GetQuestLevelForPlayer(quest)) //Quest is not red
+                    if (!isGreen)
+                        continue;
+            }
+            else //Quest is gray
+            {
+                if (isGreen)
                     continue;
-        }
-        else //Quest is gray
-        {
-            if (isGreen)
+            }
+
+            if (HasProgress(bot, quest) && !hasProgress && bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
+                continue;
+
+            if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE && !isComplete)
+                continue;
+
+            if (numQuest <= wantNum)
                 continue;
         }
-
-
-        if (HasProgress(bot, quest) && !hasProgress && bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
-            continue;
-
-        if (bot->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE && !isComplete)
-            continue;
-
-        if (numQuest <= wantNum && bot->GetQuestStatus(questId) != QUEST_STATUS_FAILED)
-            continue;
 
         //Drop quest.
         bot->GetPlayerbotAI()->DropQuest(questId);

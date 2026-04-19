@@ -6,10 +6,22 @@
 namespace ai
 {
     //This class bypasses the requirement for a bot to have a key item in their inventory when opening a lock.
-    class BotUseItemSpell : public Spell 
+    class BotUseItemSpell : public Spell
     {
     public:
         BotUseItemSpell(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false) : Spell(caster, info, triggeredFlags, originalCasterGUID, triggeredBy), itemCheats(itemCheats) {};
+
+        static BotUseItemSpell* Create(WorldObject* caster, SpellEntry const* info, uint32 triggeredFlags, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, bool itemCheats = false)
+        {
+            if (!caster || !info)
+                return nullptr;
+
+            if (info != sSpellTemplate.LookupEntry<SpellEntry>(info->Id))
+                return nullptr;
+
+            return new BotUseItemSpell(caster, info, triggeredFlags, originalCasterGUID, triggeredBy, itemCheats);
+        }
+
         SpellCastResult ForceSpellStart(SpellCastTargets const* targets, Aura* triggeredByAura = nullptr);
         bool OpenLockCheck();
 
@@ -40,6 +52,7 @@ namespace ai
     private:
         bool UseItemInternal(Player* requester, uint32 itemId, Unit* target, GameObject* gameObjectTarget, Item* itemTarget);
         bool UseQuestGiverItem(Player* requester, Item* item);
+        bool OpenItem(Player* requester, Item* item);
 #ifndef MANGOSBOT_ZERO
         bool UseGemItem(Player* requester, Item* item, Item* gem, bool replace = false);
 #endif
@@ -94,7 +107,11 @@ namespace ai
         bool Execute(Event& event) override
         {
             // Check the chance of using a potion (only in pvp)
+#ifdef MANGOSBOT_ZERO
             const bool shouldUsePotion = !ai->IsInPvp() || frand(0.0f, 1.0f) < sPlayerbotAIConfig.usePotionChance;
+#else
+            const bool shouldUsePotion = !bot->InArena() && (!ai->IsInPvp() || frand(0.0f, 1.0f) < sPlayerbotAIConfig.usePotionChance);
+#endif
             if (shouldUsePotion)
             {
                 return UseItemIdAction::Execute(event);
@@ -269,6 +286,32 @@ namespace ai
         uint32 GetItemId() override { return 11951; }
     };
 
+    class UseAntiVenomAction : public UseItemIdAction
+    {
+    public:
+        UseAntiVenomAction(PlayerbotAI* ai) : UseItemIdAction(ai, "anti-venom") {}
+
+        bool isUseful() override
+        {
+            if (!UseItemIdAction::isUseful())
+                return false;
+
+            return ai->HasAuraToDispel(bot, DISPEL_POISON);
+        }
+
+        uint32 GetItemId() override
+        {
+            int firstAidSkillValue = bot->GetSkillValue(129);
+            if (firstAidSkillValue >= 300 && bot->HasItemCount(19440, 1))
+                return 19440;
+            if (firstAidSkillValue >= 130 && bot->HasItemCount(6453, 1))
+                return 6453;
+            if (firstAidSkillValue >= 80 && bot->HasItemCount(6452, 1))
+                return 6452;
+            return 0;
+        }
+    };
+
     class UseRandomRecipeAction : public UseAction
     {
     public:
@@ -277,6 +320,21 @@ namespace ai
         virtual bool isUseful() override;
         virtual bool isPossible() override {return AI_VALUE2(uint32,"item count", "recipe") > 0; }
       
+        virtual bool Execute(Event& event) override;
+
+        // Used when this action is executed as a reaction
+        bool ShouldReactionInterruptMovement() const override { return true; }
+    };
+
+    class OpenRandomItemAction : public UseAction
+    {
+    public:
+        OpenRandomItemAction(PlayerbotAI* ai) : UseAction(ai, "open random item") {}
+
+        virtual bool isUseful() override;
+
+        virtual bool isPossible() override { return AI_VALUE2(uint32, "item count", "open") > 0; }
+
         virtual bool Execute(Event& event) override;
 
         // Used when this action is executed as a reaction
@@ -622,9 +680,7 @@ namespace ai
                 bot->addUnitState(UNIT_STAND_STATE_SIT);
                 ai->InterruptSpell();
 
-                const float mpMissingPct = 100.0f - bot->GetPowerPercent();
-                const float multiplier = bot->InBattleGround() ? 20000.0f : 27000.0f;
-                const float drinkDuration = multiplier * (mpMissingPct / 100.0f);
+                float drinkDuration = AI_VALUE(float, "drink duration");
 
                 const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(24355);
                 if (!pSpellInfo)
@@ -637,7 +693,8 @@ namespace ai
                 bot->RemoveSpellCooldown(*pSpellInfo);
 
                 // Eat and drink at the same time
-                if (AI_VALUE2(uint8, "health", "self target") < sPlayerbotAIConfig.lowHealth)
+
+                if (AI_VALUE(bool, "should eat"))
                 {
                     const SpellEntry* pSpellInfo2 = sServerFacade.LookupSpellInfo(24005);
                     if (pSpellInfo2)
@@ -650,12 +707,15 @@ namespace ai
                 return true;
             }
 
+            if (AI_VALUE2(std::list<Item*>, "inventory items", name).empty())
+                return false;
+
             return UseAction::Execute(event);
         }
 
         bool isUseful() override
         {
-            return UseAction::isUseful() && bot->HasMana() && (AI_VALUE2(uint8, "mana", "self target") < 85);
+            return UseAction::isUseful() && AI_VALUE(bool, "should drink");
         }
 
         bool isPossible() override
@@ -697,9 +757,7 @@ namespace ai
                 bot->addUnitState(UNIT_STAND_STATE_SIT);
                 ai->InterruptSpell();
 
-                const float hpMissingPct = 100.0f - bot->GetHealthPercent();
-                const float multiplier = bot->InBattleGround() ? 20000.0f : 27000.0f;
-                const float eatDuration = multiplier * (hpMissingPct / 100.0f);
+                float eatDuration = AI_VALUE(float, "eat duration");
 
                 const SpellEntry* pSpellInfo = sServerFacade.LookupSpellInfo(24005);
                 if (!pSpellInfo)
@@ -712,7 +770,7 @@ namespace ai
                 bot->RemoveSpellCooldown(*pSpellInfo);
 
                 // Eat and drink at the same time
-                if (bot->HasMana() && (AI_VALUE2(uint8, "mana", "self target") < 85))
+                if (AI_VALUE(bool, "should drink"))
                 {
                     const SpellEntry* pSpellInfo2 = sServerFacade.LookupSpellInfo(24355);
                     if (pSpellInfo2)
@@ -725,12 +783,15 @@ namespace ai
                 return true;
             }
 
+            if (AI_VALUE2(std::list<Item*>, "inventory items", name).empty())
+                return false;
+
             return UseAction::Execute(event);
         }
 
         bool isUseful() override
         {
-            return UseAction::isUseful() && (AI_VALUE2(uint8, "health", "self target") < sPlayerbotAIConfig.lowHealth);
+            return UseAction::isUseful() && AI_VALUE(bool, "should eat");
         }
 
         bool isPossible() override

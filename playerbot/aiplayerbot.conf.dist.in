@@ -44,7 +44,7 @@ AiPlayerbot.RandomBotAutoJoinBG = 0
 # Mark many quests <= Bot level as complete (slows down bot creation)
 AiPlayerbot.PreQuests = 0
 
-# Create random bot characters automatically
+# Create random bot accounts and characters automaticallylly
 AiPlayerbot.RandomBotAutoCreate = 1
 
 # Random bot count
@@ -69,6 +69,15 @@ AiPlayerbot.RandomBotAccountCount = 200
 # Works best together with AiPlayerbot.DisableBotOptimizations = 1
 # (0-1), default 0
 # AiPlayerbot.DisableActivityPriorities = 0
+
+# Force bots to become active when a player is nearby
+#AiPlayerbot.ForceActiveWhenNearPlayer = 0
+
+# Force bots to become active when guild orders are enabled
+#AiPlayerbot.GuildOrderAlwaysActive = 1
+
+# Limit combat activity for slight performance boost.
+#AiPlayerbot.LimitCombatActivity = 0
 
 # Percentage of fully active bots. Default is 10, higher numbers may affect performance
 # AiPlayerbot.botActiveAlone = 10
@@ -128,6 +137,12 @@ AiPlayerbot.RandomGearTabardsUnobtainable = 0
 # List of item IDs to exclude from random gear, separated by comma
 AiPlayerbot.RandomGearBlacklist = 0
 
+# Roll need on items if slot is empty or broken, even if not appropriate for bot's spec
+# Bots without real player master ignore this config and always roll need in that case
+# 1 - roll need on such items
+# 0 - roll greed on such items (Default)
+AiPlayerbot.RollBadItemsWithPlayer = 0
+
 # Chance random bot has max level on first randomize (default 0.15)
 AiPlayerbot.RandomBotMaxLevelChance = 0.15
 
@@ -142,6 +157,9 @@ AiPlayerbot.RandomBotRpgChance = 0.20
 
 # Limit whithin what distance between other bots they teleport to points in zones around real player
 # AiPlayerbot.RandomBotTeleportNearPlayerMaxAmountRadius = 0
+
+# Bot transport use style: 0 = walk on transports (currently not available), 1 = teleport on transports and ride it, 2 = teleport from dock to dock bypassing transport.
+# AiPlayerbot.TransportTeleportType = 2
 
 # Chance for bot to use potions
 #AiPlayerbot.UsePotionChance = 1.0
@@ -359,6 +377,9 @@ AiPlayerbot.AutoLearnDroppedSpells = 0
 # Default: 1 (enabled)
 # AiPlayerbot.AutoDoQuests = 1
 
+# Random Bots will also move to destinations when not seen by the player
+# AiPlayerbot.EnableMinimalMove = 1
+
 ##################################################################################
 #                                                                                #
 # All other parameters are optional but can be changed by uncommenting them here #
@@ -381,8 +402,15 @@ AiPlayerbot.AutoLearnDroppedSpells = 0
 # All non-orc warriors will have a 75% lower chance to be generated.
 # Human mages have a 65% lower chance to generate. 
 # Orc warriors have a 55% lower chance to generate.
-
+#
 # Source https://web.archive.org/web/20050115034332/http://www.warcraftrealms.com/census.php
+
+# As an alternative to probability-based generation, you can enable:
+# AiPlayerbot.ClassRace.UseFixedClassRaceCounts
+# This will generate random bots based on a fixed total count per class/race combo as defined by:
+# AiPlayerbot.ClassRaceProb.<class>.<race> = <number>
+#
+# AiPlayerbot.ClassRace.UseFixedClassRaceCounts = 0
 
 # AiPlayerbot.ClassRaceProb.1.0 = 178    # Human chance
 # AiPlayerbot.ClassRaceProb.2.0 = 65     # Orc chance
@@ -499,16 +527,28 @@ AiPlayerbot.PremadeSpecName.1.5 = pvp prot
 AiPlayerbot.PremadeSpecLink.1.5.60 = 05003--55255113032021251
 
 AiPlayerbot.PremadeSpecName.1.6 = fury slam
-AiPlayerbot.PremadeSpecLink.1.5.60 = 30305001322-05050005005510051
+AiPlayerbot.PremadeSpecLink.1.6.60 = 30305001322-05050005005510051
 
 AiPlayerbot.PremadeSpecName.1.7 = arms axes
-AiPlayerbot.PremadeSpecLink.1.5.60 = 303050213525100001-05050005005
+AiPlayerbot.PremadeSpecLink.1.7.60 = 303050213525100001-05050005005
 AiPlayerbot.PremadeSpecName.1.8 = arms maces
-AiPlayerbot.PremadeSpecLink.1.5.60 = 303050213520150001-05050005005
+AiPlayerbot.PremadeSpecLink.1.8.60 = 303050213520150001-05050005005
 AiPlayerbot.PremadeSpecName.1.9 = arms swords
-AiPlayerbot.PremadeSpecLink.1.5.60 = 303050213520105001-05050005005
+AiPlayerbot.PremadeSpecLink.1.9.60 = 303050213520105001-05050005005
 AiPlayerbot.PremadeSpecName.1.10 = arms polearms
-AiPlayerbot.PremadeSpecLink.1.5.60 = 303050213520100501-05050005005
+AiPlayerbot.PremadeSpecLink.1.10.60 = 303050213520100501-05050005005
+
+AiPlayerbot.PremadeSpecName.1.11 = furyprot
+AiPlayerbot.PremadeSpecLink.1.11.60 = -05050005505010051-502501105
+AiPlayerbot.PremadeSpecName.1.12 = furyprot (slam)
+AiPlayerbot.PremadeSpecLink.1.12.60 = -05500005005510051-502501105
+AiPlayerbot.PremadeSpecName.1.13 = furyprot (demo shout)
+AiPlayerbot.PremadeSpecLink.1.13.60 = -05500005505010051-502501105
+
+AiPlayerbot.PremadeSpecName.1.14 = 2h fury
+AiPlayerbot.PremadeSpecLink.1.14.60 = 3500502103-05050005505010051
+AiPlayerbot.PremadeSpecName.1.15 = fury no deep wounds
+AiPlayerbot.PremadeSpecLink.1.15.60 = 05005001-05053125525010051
 
 # Paladin
 AiPlayerbot.PremadeSpecName.2.0 = pve dps ret (basic ret)
@@ -787,6 +827,11 @@ AiPlayerbot.ShootDistance = 26.0
 #AiPlayerbot.AoeRadius = 10
 AiPlayerbot.RpgDistance = 200
 #AiPlayerbot.ProximityDistance = 20.0
+#Distances to limit bots eating/drinking while following a master.
+#Inside this range eating/drinking is cut short or prevented to stay near master.
+#AiPlayerbot.EatDrinkMinDistance = 5.0
+#AiPlayerbot.EatDrinkMaxDistance = 1000.0
+
 
 # Max distance bot allowed to roam freely around master
 #AiPlayerbot.MaxFreeMoveDistance = 150.0
@@ -816,8 +861,14 @@ AiPlayerbot.FleeingEnabled = 1
 #AiPlayerbot.ReactStrategies = 
 #AiPlayerbot.DeadStrategies = 
 
+# Toggle offheal and offdps strategies for hybrid classes.
+#AiPlayerbot.EnableOffSpecStrategies = 1
+
 # Quest items to leave (do not destroy)
 #AiPlayerbot.RandomBotQuestItems = 6948,5175,5176,5177,5178,16309,12382,13704,11000
+
+# (Alt) bots will never sell or destroy epic or greater quality items.
+# AiPlayerbot.BotsSaveEpics = 1
 
 # PvP Restricted Zones (bots don't pvp)
 #AiPlayerbot.PvpProhibitedZoneIds = 2255,656,2361,2362,2363,976,35,2268,3425,392,541,1446,3828,3712,3738,3565,3539,3623,4152,3988,4658,4284,4418,4436,4275,4323
@@ -831,15 +882,14 @@ AiPlayerbot.FleeingEnabled = 1
 #AiPlayerbot.OpenGoSpell = 6477
 
 # Intervals
-AiPlayerbot.RandomBotUpdateInterval = 1
+#AiPlayerbot.RandomBotUpdateInterval = 1000
+#AiPlayerbot.RandomBotsMaxLoginsPerInterval = 10
 AiPlayerbot.RandomBotCountChangeMinInterval = 1800
 AiPlayerbot.RandomBotCountChangeMaxInterval = 7200
 #AiPlayerbot.MinRandomBotInWorldTime = 3600
 #AiPlayerbot.MaxRandomBotInWorldTime = 1209600
 #AiPlayerbot.MinRandomBotRandomizeTime = 7200
 #AiPlayerbot.MaxRandomRandomizeTime = 1209600
-#AiPlayerbot.RandomBotsPerInterval = 3
-#AiPlayerbot.RandomBotsMaxLoginsPerInterval = 30
 #AiPlayerbot.MinRandomBotsPriceChangeInterval = 7200
 #AiPlayerbot.MaxRandomBotsPriceChangeInterval = 172800
 
@@ -849,7 +899,7 @@ AiPlayerbot.RandomBotCountChangeMaxInterval = 7200
 #
 # (0-1) If bot should query current AH listings outside of AH when determining whether the item is worth posting to AH
 # Disabled by default for performance concerns, but you REALLY want to enable it for nicer logic
-# AiPlayerbot.ShouldQueryAHListingsOutsideOfAH = 0
+# AiPlayerbot.ShouldQueryAHListingsOutsideOfAH = 1
 #
 # List of item ids which bot will prefer to put to AH rather than selling to vendor (these are overrides)
 # For example if you want bots to put certain gray/white armor pieces to AH rather than selling to vendor
@@ -899,6 +949,12 @@ AiPlayerbot.JumpChase = 1
 # Allow knockbacks work on bots
 AiPlayerbot.UseKnockback = 1
 
+# Set 'wander' as a default following strategy instead of 'follow' (Bots have freedom to move around while near master)
+#AiPlayerbot.UseWanderAsDefaultFollowStrategy = 1
+
+# Default bot formation
+#AiPlayerbot.DefaultFormation = near
+
 # Debug switches
 #AiPlayerbot.SpellDump = 0
 #AiPlayerbot.LogInGroupOnly = 1
@@ -920,9 +976,6 @@ AiPlayerbot.PerfMonEnabled = 0
 # Instant randomize: Force randombots to randomize on initial login.
 # AiPlayerbot.InstantRandomize = 0
 
-# Percentage of (min) bots online that speeds up login speed by 2x.
-# AiPlayerbot.LoginBoostPercentage = 90
-
 # Bot cheats. Same as "/w <bot> cheat (+/-/?) <cheatcode>" but only globally for all bots.
 # Values: taxi            (all nodes learned)
 #         item            (unlimited items for spells)
@@ -935,7 +988,11 @@ AiPlayerbot.PerfMonEnabled = 0
 #         movespeed       (very fast movespeed)
 #         attackspeed     (very fast attackspeed)
 #         breath          (underwater breathing)
+#         quest           (quests complete instantly)
+# Cheats for alts
 # AiPlayerbot.BotCheats = taxi,item,breath
+# Cheats for randombots
+# AiPlayerbot.RndBotCheats = taxi,item,breath
 
 # Self bot turns your current character into a bot with the command ".bot self"
 # !!DISCLAMER!! Selfbots will work and act like randombots based on their enabled strategies. Your epic mount will be sold to a vendor!
@@ -1002,6 +1059,20 @@ AiPlayerbot.PerfMonEnabled = 0
 # AiPlayerbot.LLMResponseDeletePattern = (\\n|<sender name>:|\\[^ ]+)
 # Step4: What pattern the server should look for to split the repsonse in multiple lines. Note only lines that follow this pattern will be extracted.
 # AiPlayerbot.LLMResponseSplitPattern = (\*.*?\*)|(\[.*?\])|(\'.*\')|([^\*\[\] ][^\*\[\]]+?[.?!])
+
+# The file llm_character_card.txt allows you to define how individual bots speak. You need to create this file in the root folder.
+# Each new line adds an additional prompt to the specified bot, which can be used to adjust specific bot's personality and speaking style.
+# The format must be as follows:
+# name1::text1
+# name2::text2
+# name3::text3
+
+# Examples:
+# Celguar::I am the Keeper of the Source.
+# Mostlikely::I like to travel a lot.
+# Flekz::I hold the power of ancient wizardry.
+
+AiPlayerbot.LLMDefaultPromptsFile = llm_character_card.txt
 
 # Should previous conversations from all channels be mixed?
 # AiPlayerbot.LLMGlobalContext = 0

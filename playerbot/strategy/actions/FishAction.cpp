@@ -3,33 +3,18 @@
 #include "FishAction.h"
 #include "playerbot/TravelMgr.h"
 #include "TellLosAction.h"
+#include "EquipAction.h"
 
 using namespace ai;
-
-static TravelTarget* GetTravelTarget(PlayerbotAI* ai, Player* bot)
-{
-    AiObjectContext* context = ai->GetAiObjectContext();
-    TravelTarget* target = AI_VALUE(TravelTarget*, "travel target");
-
-    Player* player = ai->GetGroupMaster();
-    if (!player || player == bot || !player->GetPlayerbotAI())
-        return target;
-
-    if (bot->GetGroup() && !ai->IsGroupLeader())
-        if (!ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) && !ai->HasStrategy("stay", BotState::BOT_STATE_NON_COMBAT) && !ai->HasStrategy("guard", BotState::BOT_STATE_NON_COMBAT))
-            return target;
-            
-    return PAI_VALUE(TravelTarget*, "travel target");
-}
 
 bool MoveToFishAction::isUseful()
 {
     if (qualifier == "travel")
     {
-        TravelTarget* target = GetTravelTarget(ai, bot);
-
-        if (target->GetStatus() != TravelStatus::TRAVEL_STATUS_WORK)
+        if (!AI_VALUE(bool, "travel target working"))
             return false;
+
+        TravelTarget* target = AI_VALUE(TravelTarget*, "leader travel target");
 
         if (target->GetDestination()->GetPurpose() != TravelDestinationPurpose::GatherFishing)
             return false;
@@ -46,7 +31,7 @@ bool MoveToFishAction::Execute(Event& event)
 
     if (!fishSpot && qualifier == "travel") //Get travel fish spot if available.
     {
-        TravelTarget* target = GetTravelTarget(ai, bot);
+        TravelTarget* target = AI_VALUE(TravelTarget*, "leader travel target");
         fishSpot = *target->GetPosition();
 
         if (AI_VALUE(TravelTarget*, "travel target") != target) //Do not fish ontop of master.
@@ -78,13 +63,16 @@ bool FishAction::isUseful()
 {
     if (qualifier == "travel")
     {
-        TravelTarget* target = GetTravelTarget(ai, bot);
-
-        if (target->GetStatus() != TravelStatus::TRAVEL_STATUS_WORK)
+        if (!AI_VALUE(bool, "travel target working"))
             return false;
+
+        TravelTarget* target = AI_VALUE(TravelTarget*, "leader travel target");
 
         if (target->GetDestination()->GetPurpose() != TravelDestinationPurpose::GatherFishing)
             return false;
+
+        if (!bot->GetGroup() || ai->IsGroupLeader() || target->GetTimeLeft() < 0)
+            target->CheckStatus();
     }
 
     WorldPosition fishSpot = AI_VALUE2(WorldPosition, "custom position", "fish spot");
@@ -105,11 +93,7 @@ bool FishAction::Execute(Event& event)
 {
     if (qualifier == "travel")
     {
-        TravelTarget* target = AI_VALUE(TravelTarget*, "travel target");
-
-        target->CheckStatus();
-
-        if (target->GetStatus() != TravelStatus::TRAVEL_STATUS_TRAVEL)
+        if (!AI_VALUE(bool, "travel target working"))
             return false;
     }
 
@@ -140,9 +124,8 @@ bool FishAction::Execute(Event& event)
     uint8 bagIndex = pole->GetBagSlot();
     uint8 slot = pole->GetSlot();
 
-    WorldPacket packet(CMSG_AUTOEQUIP_ITEM, 2);
-    packet << bagIndex << slot;
-    bot->GetSession()->HandleAutoEquipItemOpcode(packet);
+    if (slot != EQUIPMENT_SLOT_MAINHAND)
+        EquipAction::EquipItem(ai, GetMaster(), pole);
 
     Event fishCastEvent = Event("fish", "7731 " + chat->formatWorldobject(bot));
     bool didCast = CastCustomSpellAction::Execute(fishCastEvent);

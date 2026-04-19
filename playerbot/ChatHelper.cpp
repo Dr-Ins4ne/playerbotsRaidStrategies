@@ -464,6 +464,7 @@ std::string ChatHelper::formatWorldobject(const WorldObject* wo)
     std::ostringstream out;
     int loc_idx = sPlayerbotTextMgr.GetLocalePriority();
     std::string name = (wo->IsGameObject() ? ((GameObject*)wo)->GetGOInfo()->name : wo->GetName());
+    if (name.empty()) name = "unknown:" + std::to_string(wo->GetEntry());
     if (loc_idx >= 0 && wo->IsGameObject())
     {
         GameObjectLocale const* gl = sObjectMgr.GetGameObjectLocale(wo->GetEntry());
@@ -496,8 +497,9 @@ std::string ChatHelper::formatWorldEntry(int32 entry)
         name = gInfo->name;
     else if (entry > 0 && cInfo)
         name = cInfo->Name;
-    else
-        name = "unknown";
+    
+    if(name.empty())
+        name = "unknown:" + std::to_string(entry);
 
     if (loc_idx >= 0 && entry < 0)
     {
@@ -598,6 +600,15 @@ std::string ChatHelper::formatQItem(uint32 itemId)
     return out.str();
 }
 
+std::string ChatHelper::formatSlot(uint8 slotId)
+{
+    for (auto& [name, id] : slots)
+        if (id == slotId)
+            return name;
+
+    return "unknown";
+}
+
 std::string ChatHelper::formatSkill(uint32 skillId, Player* player)
 {
     std::string name = "unknown skill";
@@ -631,15 +642,15 @@ std::string ChatHelper::formatSkill(uint32 skillId, Player* player)
 
         if (tempValue)
             out << " +temp " << permValue;
+
+        out << ")";
     }
 
     return out.str();
 }
 
-std::string ChatHelper::formatFaction(uint32 factionId, Player* player)
+std::string ChatHelper::formatReaction(ReputationRank rank, Player* player)
 {
-    std::string name = "unknown faction";
-
     uint32 ReputationRankStrIndex[MAX_REPUTATION_RANK];
     ReputationRankStrIndex[REP_HATED] = LANG_REP_HATED;
     ReputationRankStrIndex[REP_HOSTILE] = LANG_REP_HOSTILE;
@@ -649,6 +660,41 @@ std::string ChatHelper::formatFaction(uint32 factionId, Player* player)
     ReputationRankStrIndex[REP_HONORED] = LANG_REP_HONORED;
     ReputationRankStrIndex[REP_REVERED] = LANG_REP_REVERED;
     ReputationRankStrIndex[REP_EXALTED] = LANG_REP_EXALTED;
+
+    int loc_idx = sPlayerbotTextMgr.GetLocalePriority();
+
+    std::string rankName = sObjectMgr.GetMangosString(ReputationRankStrIndex[rank], loc_idx);
+
+    std::ostringstream out;
+
+    switch (rank)
+    {
+    case REP_HATED:
+        out << "|cff8b0000";
+        break;
+    case REP_HOSTILE:
+        out << "|cffff0000";
+        break;
+    case REP_NEUTRAL:
+    case REP_UNFRIENDLY:
+        out << "|cffffff00";
+        break;
+    case REP_FRIENDLY:
+    case REP_HONORED:
+    case REP_REVERED:
+    case REP_EXALTED:
+        out << "|cff00ff00";
+        break;
+    }
+
+    out << rankName << "|r";
+
+    return out.str();
+}
+
+std::string ChatHelper::formatFaction(uint32 factionId, Player* player)
+{
+    std::string name = "unknown faction";
 
 #ifndef MANGOSBOT_ONE
     const FactionEntry* factionEntry = sFactionStore.LookupEntry(factionId);
@@ -672,11 +718,9 @@ std::string ChatHelper::formatFaction(uint32 factionId, Player* player)
         FactionState const* repState = player->GetReputationMgr().GetState(factionEntry);
 
         if (repState && repState->Flags & FACTION_FLAG_VISIBLE)
-        {
+        {                        
             ReputationRank rank = player->GetReputationMgr().GetRank(factionEntry);
-            std::string rankName = player->GetSession()->GetMangosString(ReputationRankStrIndex[rank]);
-
-            out << " " << rankName << "|h|r (" << player->GetReputationMgr().GetReputation(factionEntry) << ")";
+            out << " " << formatReaction(rank, player) << " (" << player->GetReputationMgr().GetReputation(factionEntry) << ")";
 
             if (repState->Flags & FACTION_FLAG_AT_WAR)
                 out << " at war";
@@ -895,6 +939,34 @@ bool ChatHelper::parseable(const std::string& text)
             parseMoney(text) > 0;
 }
 
+        ;
+;
+
+
+BotRoles ChatHelper::parseRole(const std::string& text)
+{
+    if (boost::iequals(text, "healer"))
+        return BotRoles::BOT_ROLE_HEALER;
+    else if (boost::iequals(text, "tank"))
+        return BotRoles::BOT_ROLE_TANK;
+    else if (boost::iequals(text, "dps"))
+        return BotRoles::BOT_ROLE_DPS;
+
+    return BotRoles::BOT_ROLE_NONE;
+}
+
+std::string ChatHelper::formatRole(BotRoles role)
+{
+    if (role == BotRoles::BOT_ROLE_HEALER)
+        return "healer";
+    else if (role == BotRoles::BOT_ROLE_TANK)
+        return "tank";
+    else if (role == BotRoles::BOT_ROLE_DPS)
+        return "dps";
+
+    return "none";
+}
+
 std::string ChatHelper::specName(const Player* player)
 {
     return specs[player->getClass()][AiFactory::GetPlayerSpecTab(player)];
@@ -920,9 +992,93 @@ std::string ChatHelper::formatClass(const Player* player, int spec)
     return out.str();
 }
 
+uint32 ChatHelper::parseGender(const std::string& text)
+{
+    if (boost::iequals(text, "male"))
+        return GENDER_MALE;
+    else if (boost::iequals(text, "female"))
+        return GENDER_FEMALE;
+    else if (Qualified::isValidNumberString(text))
+    {
+        uint8 gender = static_cast<uint32>(stoi(text));
+        if (gender == GENDER_MALE || gender == GENDER_FEMALE)
+            return gender;
+    }
+
+    return GENDER_NONE;
+}
+
+std::string ChatHelper::formatGender(uint8 gender)
+{
+    if (gender == GENDER_MALE)
+        return "male";
+    if (gender == GENDER_FEMALE)
+        return "female";
+
+    return "none";
+}
+
+Team ChatHelper::parseTeam(const std::string& text)
+{
+    if (boost::iequals(text, "alliance"))
+        return ALLIANCE;
+    else if (boost::iequals(text, "horde"))
+        return HORDE;
+    else if (Qualified::isValidNumberString(text))
+    {
+        uint8 team = static_cast<uint32>(stoi(text));
+        if (team == ALLIANCE || team == HORDE)
+            return (Team)team;
+    }
+
+    return TEAM_BOTH_ALLOWED;
+}
+
+std::string ChatHelper::formatTeam(Team team)
+{
+    if (team == ALLIANCE)
+        return "Alliance";
+    if (team == HORDE)
+        return "Horde";
+
+    return "none";
+}
+
+uint32 ChatHelper::parseClass(const std::string& text)
+{
+    for (auto& [classId, className] : classes)
+        if (boost::iequals(className, text))
+            return classId;
+
+    if (Qualified::isValidNumberString(text))
+    {
+        uint32 id = static_cast<uint32>(stoi(text));
+        if (classes.count(id))
+            return id;
+    }
+
+    return 0;
+}
+
 std::string ChatHelper::formatClass(uint8 cls)
 {
     return classes[cls];
+}
+
+uint32 ChatHelper::parseRace(const std::string& text)
+{
+    for (auto& [raceId, raceName] : races)
+        if (boost::iequals(raceName, text))
+            return raceId;
+
+    if (Qualified::isValidNumberString(text))
+    {
+        uint32 id = static_cast<uint32>(stoi(text));
+        if (races.count(id))
+            return id;
+    }
+
+    return 0;
 }
 
 std::string ChatHelper::formatRace(uint8 race)
@@ -982,36 +1138,52 @@ std::string ChatHelper::formatAngle(float angle)
     return headings[int32(round(headingAngle / 45)) % 8];
 }
 
-std::string ChatHelper::formatWorldPosition(const WorldPosition& pos)
+std::string ChatHelper::formatWorldPosition(const WorldPosition& pos, const WorldPosition refPos)
 {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2);
-    out << pos.getX() << "," << pos.getY() << "," << pos.getZ();
-    if (pos.getO())
-        out << " facing " << formatAngle(pos.getO());
-    if (pos.getMap(pos.getFirstInstanceId()))
-        out << " in " << pos.getMap(pos.getFirstInstanceId())->GetMapName();
+    if (!refPos || refPos.getMapId() != pos.getMapId())
+    {
+        out << pos.getX() << "," << pos.getY() << "," << pos.getZ();
+
+        if (pos.getMap(pos.getFirstInstanceId()))
+            out << " in " << pos.getMap(pos.getFirstInstanceId())->GetMapName();
+        else
+            out << " map:" << pos.getMapId();
+    }
     else
-        out << " map:" << pos.getMapId();
+    {
+        float distance = refPos.distance(pos);
+        float angle = refPos.getAngleTo(pos);
+
+        out << distance << "y to the " << formatAngle(angle);
+    }
 
     return out.str();
 }
 
 
-std::string ChatHelper::formatGuidPosition(const GuidPosition& guidP)
+std::string ChatHelper::formatGuidPosition(const GuidPosition& guidP, const GuidPosition& ref)
 {
     std::ostringstream out;
     if (guidP.GetWorldObject(guidP.getFirstInstanceId()))
-        out << guidP.GetWorldObject(guidP.getFirstInstanceId())->GetName();
+        out << formatWorldobject(guidP.GetWorldObject(guidP.getFirstInstanceId()));
     else if (guidP.GetCreatureTemplate())
-        out << guidP.GetCreatureTemplate()->Name;
+        out << formatWorldEntry(guidP.GetEntry());
     else if (guidP.GetGameObjectInfo())
-        out << guidP.GetGameObjectInfo()->name;
+        out << formatWorldEntry(guidP.GetEntry()*-1);
     else
-        out << guidP.GetRawValue();
+        out << "|cFFFFFF00|Hfound:" << guidP.GetRawValue() << ":" << guidP.GetEntry() << ":" << "|h[unkown " << guidP.GetTypeName() << " " << guidP.GetRawValue() << "]|h|r";
+
+    out.seekp(-5, out.cur);
 
     if (WorldPosition(guidP))
-        out << " " << formatWorldPosition(guidP);
+        out << " " << formatWorldPosition(guidP, ref);
+
+    if(ref && ref.IsPlayer() && (guidP.IsCreature() || guidP.IsPlayer()))
+        out << " " << formatReaction(guidP.GetReactionTo(ref, ref.getFirstInstanceId()));
+
+    out << "]|h|r";
 
     return out.str();
 }
@@ -1052,6 +1224,7 @@ inline std::string toInitCap(const std::string& str) {
 
 void ChatHelper::PopulateSpellNameList()
 {
+    spellIds.clear();
     for (uint32 i = 0; i < GetSpellStore()->GetMaxEntry(); ++i)
     {
         SpellEntry const* tempSpell = GetSpellStore()->LookupEntry<SpellEntry>(i);

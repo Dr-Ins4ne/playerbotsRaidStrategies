@@ -8,15 +8,17 @@ namespace ai
     {
     public:
         ResetInstancesAction(PlayerbotAI* ai) : Action(ai, "reset instances") {}
-        virtual bool Execute(Event& event);
-        virtual bool isUseful() { return ai->GetGroupMaster() == bot; };
+        virtual bool Execute(Event& event) override;
+        virtual bool isUseful() override { return ai->GetGroupMaster() == bot; };
+        virtual bool isUsefulWhenStunned() override { return true; }
     };
 
     class ResetRaidsAction : public Action
     {
     public:
         ResetRaidsAction(PlayerbotAI* ai) : Action(ai, "reset raids") {}
-        virtual bool Execute(Event& event);
-        virtual bool isUseful() { return true; };
+        virtual bool Execute(Event& event) override;
+        virtual bool isUseful() override { return true; };
+        virtual bool isUsefulWhenStunned() override { return true; }
     };
 }

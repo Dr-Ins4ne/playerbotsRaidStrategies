@@ -24,7 +24,7 @@ namespace ai
     class DKPresenceTrigger : public BuffTrigger {
     public:
         DKPresenceTrigger(PlayerbotAI* ai) : BuffTrigger(ai, "blood presence") {}
-        virtual bool IsActive();
+        virtual bool IsActive() override;
     };
 
 	class BloodTapTrigger : public BuffTrigger {
@@ -104,6 +104,9 @@ namespace ai
     public:
         AutoRuneForgeTrigger(PlayerbotAI* ai) : Trigger(ai, "auto runeforge") {}
         virtual bool IsActive() override {
+			if (AI_VALUE2(time_t, "manual time", "next runeforge check") > time(0))
+				return false;
+
             return AI_VALUE(bool, "should runeforge");
         }
     };

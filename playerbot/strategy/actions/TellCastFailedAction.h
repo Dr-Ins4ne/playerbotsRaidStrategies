@@ -8,6 +8,7 @@ namespace ai
     public:
         TellSpellAction(PlayerbotAI* ai) : ChatCommandAction(ai, "spell") {}
         virtual bool Execute(Event& event) override;
+        virtual bool isUsefulWhenStunned() override { return true; }
     };
 
     class TellCastFailedAction : public Action 
@@ -15,6 +16,7 @@ namespace ai
     public:
         TellCastFailedAction(PlayerbotAI* ai) : Action(ai, "tell cast failed") {}
 
-        virtual bool Execute(Event& event);
+        virtual bool Execute(Event& event) override;
+        virtual bool isUsefulWhenStunned() override { return true; }
     };
 }

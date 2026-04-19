@@ -456,7 +456,7 @@ BotPool PlayerBotLoginMgr::LoadBotsFromDb()
 
 void PlayerBotLoginMgr::SendHolders(const BotInfos& queue)
 {  
-    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, sWorld.GetCurrentMSTime(), std::string("CharacterDatabase"), "select 1 from dual");
+    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, sWorld.GetCurrentMSTime(), std::string("CharacterDatabase"), "select 1");
 
     for (auto& info : queue)
     {
@@ -468,7 +468,7 @@ void PlayerBotLoginMgr::SendHolders(const BotInfos& queue)
 
 void PlayerBotLoginMgr::SendHolders(BotPool* pool)
 {
-    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, sWorld.GetCurrentMSTime(), std::string("CharacterDatabase"), "select 1 from dual");
+    CharacterDatabase.AsyncPQuery(&RandomPlayerbotMgr::DatabasePing, sWorld.GetCurrentMSTime(), std::string("CharacterDatabase"), "select 1");
 
     for (auto& [guid, info] : *pool)
     {
@@ -561,7 +561,7 @@ void PlayerBotLoginMgr::FillLoginSpace(BotPool* pool, LoginSpace& space, FillSte
     space.currentSpace = GetMaxOnlineBotCount();
     space.totalSpace = GetMaxOnlineBotCount();
 
-    for (uint32 level = 1; level <= DEFAULT_MAX_LEVEL + 1; ++level)
+    for (uint32 level = 1; level < DEFAULT_MAX_LEVEL + 1; ++level)
     {
         space.levelBucket[level] = GetLevelBucketSize(level);
     }
@@ -731,6 +731,9 @@ uint32 PlayerBotLoginMgr::GetClassRaceBucketSize(uint8 cls, uint8 race)
 
     if (prob == 0)
         return 0;
+
+    if (sPlayerbotAIConfig.useFixedClassRaceCounts)
+        return sPlayerbotAIConfig.classRaceProbability[cls][race];
 
     return GetMaxOnlineBotCount() * sPlayerbotAIConfig.classRaceProbability[cls][race] / sPlayerbotAIConfig.classRaceProbabilityTotal;
 }

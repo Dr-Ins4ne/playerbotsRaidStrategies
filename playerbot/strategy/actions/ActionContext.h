@@ -53,6 +53,9 @@
 #include "GuildCreateActions.h"
 #include "GuildManagementActions.h"
 #include "GuildAcceptAction.h"
+#include "GuildAcceptQuestOrderAction.h"
+#include "GuildShareItemAction.h"
+#include "GuildShareAhBuyAction.h"
 #include "RpgSubActions.h"
 #include "VehicleActions.h"
 #include "UseTrinketAction.h"
@@ -67,9 +70,13 @@
 #include "FishAction.h"
 #include "AutoCompleteQuestAction.h"
 #include "UnstuckAction.h"
+#include "RangeAction.h"
+#include "UseConsumableAction.h"
+#include "WorldBuffTravelActions.h"
 
 #include "OnyxiasLairDungeonActions.h"
 #include "MoltenCoreDungeonActions.h"
+#include "BlackwingLairDungeonActions.h"
 #include "KarazhanDungeonActions.h"
 #include "NaxxramasDungeonActions.h"
 
@@ -105,6 +112,7 @@ namespace ai
             creators["reach melee"] = [](PlayerbotAI* ai) { return new ReachMeleeAction(ai); };
             creators["reach pull"] = [](PlayerbotAI* ai) { return new ReachPullAction(ai); };
             creators["reach party member to heal"] = [](PlayerbotAI* ai) { return new ReachPartyMemberToHealAction(ai); };
+            creators["reach party member for totem"] = [](PlayerbotAI* ai) { return new ReachPartyMemberForTotemAction(ai); };
             creators["flee"] = [](PlayerbotAI* ai) { return new FleeAction(ai); };
             creators["flee with pet"] = [](PlayerbotAI* ai) { return new FleeWithPetAction(ai); };
             creators["wait for attack keep safe distance"] = [](PlayerbotAI* ai) { return new WaitForAttackKeepSafeDistanceAction(ai); };
@@ -186,10 +194,20 @@ namespace ai
             creators["move from dark portal"] = [](PlayerbotAI* ai) { return new MoveFromDarkPortalAction(ai); };
             creators["use dark portal azeroth"] = [](PlayerbotAI* ai) { return new DarkPortalAzerothAction(ai); };
             creators["world buff"] = [](PlayerbotAI* ai) { return new WorldBuffAction(ai); };
+            creators["world buff travel apply"] = [](PlayerbotAI* ai) { return new WorldBuffTravelApplyAction(ai); };
+            creators["world buff travel cast portal"] = [](PlayerbotAI* ai) { return new WorldBuffTravelCastPortalAction(ai); };
+            creators["world buff travel take portal"] = [](PlayerbotAI* ai) { return new WorldBuffTravelTakePortalAction(ai); };
+            creators["world buff travel finish"] = [](PlayerbotAI* ai) { return new WorldBuffTravelFinishAction(ai); };
+            creators["world buff travel set target"] = [](PlayerbotAI* ai) { return new WorldBuffTravelSetTargetAction(ai); };
+            creators["world buff travel dm buffed"] = [](PlayerbotAI* ai) { return new WorldBuffTravelDMBuffedAction(ai); };
+            creators["world buff travel dm exited"] = [](PlayerbotAI* ai) { return new WorldBuffTravelDMExitedAction(ai); };
+            creators["world buff travel dm cast portal"] = [](PlayerbotAI* ai) { return new WorldBuffTravelDMCastPortalAction(ai); };
+            creators["world buff travel dm take portal"] = [](PlayerbotAI* ai) { return new WorldBuffTravelDMTakePortalAction(ai); };
             creators["hearthstone"] = [](PlayerbotAI* ai) { return new UseHearthStoneAction(ai); };
             creators["cast random spell"] = [](PlayerbotAI* ai) { return new CastRandomSpellAction(ai); };
             creators["free bg join"] = [](PlayerbotAI* ai) { return new FreeBGJoinAction(ai); };
             creators["use random recipe"] = [](PlayerbotAI* ai) { return new UseRandomRecipeAction(ai); };
+            creators["open random item"] = [](PlayerbotAI* ai) { return new OpenRandomItemAction(ai); };
             creators["use random quest item"] = [](PlayerbotAI* ai) { return new UseRandomQuestItemAction(ai); };
             creators["craft random item"] = [](PlayerbotAI* ai) { return new CraftRandomItemAction(ai); };
             creators["smart destroy item"] = [](PlayerbotAI* ai) { return new SmartDestroyItemAction(ai); };
@@ -204,6 +222,9 @@ namespace ai
             creators["turn in petition"] = [](PlayerbotAI* ai) { return new PetitionTurnInAction(ai); };
             creators["buy tabard"] = [](PlayerbotAI* ai) { return new BuyTabardAction(ai); };
             creators["guild manage nearby"] = [](PlayerbotAI* ai) { return new GuildManageNearbyAction(ai); };
+            creators["guild share item"] = [](PlayerbotAI* ai) { return new GuildShareItemAction(ai); };
+            creators["guild ah buy"] = [](PlayerbotAI* ai) { return new GuildShareAhBuyAction(ai); };
+            creators["guild accept quest order"] = [](PlayerbotAI* ai) { return new GuildAcceptQuestOrderAction(ai); };
             creators["use trinket"] = [](PlayerbotAI* ai) { return new UseTrinketAction(ai); };
             creators["unstuck"] = [](PlayerbotAI* ai) { return new UnstuckAction(ai); };
             creators["reset"] = [](PlayerbotAI* ai) { return new ResetAction(ai); };
@@ -221,6 +242,8 @@ namespace ai
             creators["rocket boots"] = [](PlayerbotAI* ai) { return new UseRocketBootsAction(ai); };
             creators["fire protection potion"] = [](PlayerbotAI* ai) { return new UseFireProtectionPotionAction(ai); };
             creators["free action potion"] = [](PlayerbotAI* ai) { return new UseFreeActionPotionAction(ai); };
+            creators["use consumable"] = [](PlayerbotAI* ai) { return new UseConsumableAction(ai); };
+            creators["anti-venom"] = [](PlayerbotAI* ai) { return new UseAntiVenomAction(ai); };
 
             // BG Tactics
             creators["bg tactics"] = [](PlayerbotAI* ai) { return new BGTactics(ai); };
@@ -251,6 +274,18 @@ namespace ai
             creators["blade salvo"] = [](PlayerbotAI* ai) { return new CastBladeSalvoAction(ai); };
             creators["glaive throw"] = [](PlayerbotAI* ai) { return new CastGlaiveThrowAction(ai); };
 
+            // Quest vehicles
+            creators["deliver stolen horse"] = [](PlayerbotAI* ai) { return new CastDeliverStolenHorseAction(ai); };
+            creators["horsemans call"] = [](PlayerbotAI* ai) { return new CastHorsemansCallAction(ai); };
+
+            creators["scarlet cannon"] = [](PlayerbotAI* ai) { return new CastScarletCannonAction(ai); };
+            creators["electro - magnetic pulse"] = [](PlayerbotAI* ai) { return new CastElectroMagneticPulseAction(ai); };            
+            creators["skeletal gryphon escape"] = [](PlayerbotAI* ai) { return new CastSkeletalGryphonEscapeAction(ai); };
+            
+            creators["frozen deathbolt"] = [](PlayerbotAI* ai) { return new CastFrozenDeathboltAction(ai); };
+            creators["devour humanoid"] = [](PlayerbotAI* ai) { return new CastDevourHumanoidAction(ai); };            
+            
+
             //Rpg
             creators["rpg stay"] = [](PlayerbotAI* ai) { return new RpgStayAction(ai); };
             creators["rpg work"] = [](PlayerbotAI* ai) { return new RpgWorkAction(ai); };
@@ -274,11 +309,13 @@ namespace ai
             creators["rpg use"] = [](PlayerbotAI* ai) { return new RpgUseAction(ai); };
             creators["rpg ai chat"] = [](PlayerbotAI* ai) { return new RpgAIChatAction(ai); };
             creators["rpg spell"] = [](PlayerbotAI* ai) { return new RpgSpellAction(ai); };
+            creators["rpg spell click"] = [](PlayerbotAI* ai) { return new RpgSpellClickAction(ai); };
             creators["rpg craft"] = [](PlayerbotAI* ai) { return new RpgCraftAction(ai); };
             creators["rpg trade useful"] = [](PlayerbotAI* ai) { return new RpgTradeUsefulAction(ai); };
             creators["rpg enchant"] = [](PlayerbotAI* ai) { return new RpgEnchantAction(ai); };
             creators["rpg duel"] = [](PlayerbotAI* ai) { return new RpgDuelAction(ai); };
             creators["rpg item"] = [](PlayerbotAI* ai) { return new RpgItemAction(ai); };
+            creators["rpg gossip talk"] = [](PlayerbotAI* ai) { return new RpgGossipTalkAction(ai); };
 
             creators["auto set glyph"] = [](PlayerbotAI* ai) { return new AutoSetGlyphAction(ai); };
             creators["auto complete quest"] = [](PlayerbotAI* ai) { return new AutoCompleteQuestAction(ai); };
@@ -319,6 +356,8 @@ namespace ai
             creators["disable onyxia's lair strategy"] = [](PlayerbotAI* ai) { return new OnyxiasLairDisableDungeonStrategyAction(ai); };
             creators["enable molten core strategy"] = [](PlayerbotAI* ai) { return new MoltenCoreEnableDungeonStrategyAction(ai); };
             creators["disable molten core strategy"] = [](PlayerbotAI* ai) { return new MoltenCoreDisableDungeonStrategyAction(ai); };
+            creators["enable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairEnableDungeonStrategyAction(ai); };
+            creators["disable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairDisableDungeonStrategyAction(ai); };
             creators["enable karazhan strategy"] = [](PlayerbotAI* ai) { return new KarazhanEnableDungeonStrategyAction(ai); };
             creators["disable karazhan strategy"] = [](PlayerbotAI* ai) { return new KarazhanDisableDungeonStrategyAction(ai); };
             creators["enable naxxramas strategy"] = [](PlayerbotAI* ai) { return new NaxxramasEnableDungeonStrategyAction(ai); };
@@ -361,6 +400,10 @@ namespace ai
             creators["move to mc rune"] = [](PlayerbotAI* ai) { return new MoveToMCRuneAction(ai); };
             creators["douse mc rune aqual"] = [](PlayerbotAI* ai) { return new DouseMCRuneActionAqual(ai); };
             creators["douse mc rune eternal"] = [](PlayerbotAI* ai) { return new DouseMCRuneActionEternal(ai); };
+
+            creators["move to suppression device"] = [](PlayerbotAI* ai) { return new MoveToSuppressionDeviceAction(ai); };
+            creators["stealth for suppression device"] = [](PlayerbotAI* ai) { return new StealthForSuppressionDeviceAction(ai); };
+            creators["disarm suppression device"] = [](PlayerbotAI* ai) { return new DisarmSuppressionDeviceAction(ai); };
 
             creators["enable netherspite fight strategy"] = [](PlayerbotAI* ai) { return new NetherspiteEnableFightStrategyAction(ai); };
             creators["disable netherspite fight strategy"] = [](PlayerbotAI* ai) { return new NetherspiteDisableFightStrategyAction(ai); };

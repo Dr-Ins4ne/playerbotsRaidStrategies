@@ -3,11 +3,11 @@
 #include "playerbot/playerbot.h"
 #include "RandomPlayerbotFactory.h"
 #include "Accounts/AccountMgr.h"
-#include "SystemConfig.h"
 #include "playerbot/PlayerbotFactory.h"
 #include "RandomItemMgr.h"
 #include "World/WorldState.h"
 #include "playerbot/PlayerbotHelpMgr.h"
+#include "playerbot/strategy/actions/CheatAction.h"
 
 #include "playerbot/TravelMgr.h"
 
@@ -16,6 +16,8 @@
 #include <iomanip>
 #include <boost/algorithm/string.hpp>
 #include <regex>
+#include <fstream>
+#include <sstream>
 #include "PlayerbotLoginMgr.h"
 
 std::vector<std::string> ConfigAccess::GetValues(const std::string& name) const
@@ -87,7 +89,7 @@ bool PlayerbotAIConfig::Initialize()
 {
     sLog.outString("Initializing AI Playerbot by ike3, based on the original Playerbot by blueboy");
 
-    if (!config.SetSource(SYSCONFDIR"aiplayerbot.conf", "PlayerBots_"))
+    if (!config.SetSource(_D_AIPLAYERBOT_CONFIG, "PlayerBots_"))
     {
         sLog.outString("AI Playerbot is Disabled. Unable to open configuration file aiplayerbot.conf");
         return false;
@@ -137,6 +139,8 @@ bool PlayerbotAIConfig::Initialize()
     meleeDistance = config.GetFloatDefault("AiPlayerbot.MeleeDistance", 1.5f);
     followDistance = config.GetFloatDefault("AiPlayerbot.FollowDistance", 1.5f);
     raidFollowDistance = config.GetFloatDefault("AiPlayerbot.RaidFollowDistance", 5.0f);
+    wanderMinDistance = config.GetFloatDefault("AiPlayerbot.WanderMinDistance", 5.0f);
+    wanderMaxDistance = config.GetFloatDefault("AiPlayerbot.WanderMaxDistance", 50.0f);
     whisperDistance = config.GetFloatDefault("AiPlayerbot.WhisperDistance", 6000.0f);
     contactDistance = config.GetFloatDefault("AiPlayerbot.ContactDistance", 0.5f);
     aoeRadius = config.GetFloatDefault("AiPlayerbot.AoeRadius", 5.0f);
@@ -162,6 +166,7 @@ bool PlayerbotAIConfig::Initialize()
     randomGearProgression = config.GetBoolDefault("AiPlayerbot.RandomGearProgression", true);
     randomGearLoweringChance = config.GetFloatDefault("AiPlayerbot.RandomGearLoweringChance", 0.15f);
     randomBotMaxLevelChance = config.GetFloatDefault("AiPlayerbot.RandomBotMaxLevelChance", 0.15f);
+    rollBadItemsWithPlayer = config.GetBoolDefault("AiPlayerbot.RollBadItemsWithPlayer", false);
     randomBotRpgChance = config.GetFloatDefault("AiPlayerbot.RandomBotRpgChance", 0.35f);
     usePotionChance = config.GetFloatDefault("AiPlayerbot.UsePotionChance", 1.0f);
     attackEmoteChance = config.GetFloatDefault("AiPlayerbot.AttackEmoteChance", 0.0f);
@@ -202,12 +207,12 @@ bool PlayerbotAIConfig::Initialize()
 
     botAutologin = BotAutoLogin(config.GetIntDefault("AiPlayerbot.BotAutologin", 0));
     randomBotAutologin = config.GetBoolDefault("AiPlayerbot.RandomBotAutologin", true);
+    randomBotAutoCreate = config.GetBoolDefault("AiPlayerbot.RandomBotAutoCreate", true);
     minRandomBots = config.GetIntDefault("AiPlayerbot.MinRandomBots", 50);
     maxRandomBots = config.GetIntDefault("AiPlayerbot.MaxRandomBots", 200);
-    randomBotUpdateInterval = config.GetIntDefault("AiPlayerbot.RandomBotUpdateInterval", 1);
+    randomBotUpdateInterval = config.GetIntDefault("AiPlayerbot.RandomBotUpdateInterval", 1 * 1000);
     randomBotCountChangeMinInterval = config.GetIntDefault("AiPlayerbot.RandomBotCountChangeMinInterval", 1 * 1800);
     randomBotCountChangeMaxInterval = config.GetIntDefault("AiPlayerbot.RandomBotCountChangeMaxInterval", 2 * 3600);
-    loginBoostPercentage = config.GetFloatDefault("AiPlayerbot.LoginBoostPercentage", 90);
     randomBotTimedLogout = config.GetBoolDefault("AiPlayerbot.RandomBotTimedLogout", true);
     randomBotTimedOffline = config.GetBoolDefault("AiPlayerbot.RandomBotTimedOffline", false);
     minRandomBotInWorldTime = config.GetIntDefault("AiPlayerbot.MinRandomBotInWorldTime", 1 * 1800);
@@ -219,21 +224,25 @@ bool PlayerbotAIConfig::Initialize()
     minRandomBotReviveTime = config.GetIntDefault("AiPlayerbot.MinRandomBotReviveTime", 60);
     maxRandomBotReviveTime = config.GetIntDefault("AiPlayerbot.MaxRandomReviveTime", 300);
     enableRandomTeleports = config.GetBoolDefault("AiPlayerbot.EnableRandomTeleports", true);
+    enableMinimalMove = config.GetBoolDefault("AiPlayerbot.EnableMinimalMove", true);
+    
     randomBotTeleportDistance = config.GetIntDefault("AiPlayerbot.RandomBotTeleportDistance", 1000);
+    transportTeleportType = config.GetIntDefault("AiPlayerbot.TransportTeleportType", 2);
     randomBotTeleportNearPlayer = config.GetBoolDefault("AiPlayerbot.RandomBotTeleportNearPlayer", false);
     randomBotTeleportNearPlayerMaxAmount = config.GetIntDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmount", 0);
     randomBotTeleportNearPlayerMaxAmountRadius = config.GetFloatDefault("AiPlayerbot.RandomBotTeleportNearPlayerMaxAmountRadius", 0.0f);
     randomBotTeleportMinInterval = config.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMinInterval", 2 * 3600);
     randomBotTeleportMaxInterval = config.GetIntDefault("AiPlayerbot.RandomBotTeleportTeleportMaxInterval", 48 * 3600);
-    randomBotsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsPerInterval", 3);
-    randomBotsMaxLoginsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsMaxLoginsPerInterval", randomBotsPerInterval);
+    randomBotsMaxLoginsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsMaxLoginsPerInterval", 10);
+    randomBotsPerInterval = config.GetIntDefault("AiPlayerbot.RandomBotsPerInterval", 0);
     minRandomBotsPriceChangeInterval = config.GetIntDefault("AiPlayerbot.MinRandomBotsPriceChangeInterval", 2 * 3600);
     maxRandomBotsPriceChangeInterval = config.GetIntDefault("AiPlayerbot.MaxRandomBotsPriceChangeInterval", 48 * 3600);
     //Auction house settings
-    shouldQueryAHListingsOutsideOfAH = config.GetBoolDefault("AiPlayerbot.ShouldQueryAHListingsOutsideOfAH", false);
+    shouldQueryAHListingsOutsideOfAH = config.GetBoolDefault("AiPlayerbot.ShouldQueryAHListingsOutsideOfAH", true);
     LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.AhOverVendorItemIds", ""), ahOverVendorItemIds);
     LoadList<std::list<uint32> >(config.GetStringDefault("AiPlayerbot.VendorOverAHItemIds", ""), vendorOverAHItemIds);
     botCheckAllAuctionListings = config.GetBoolDefault("AiPlayerbot.BotCheckAllAuctionListings", false);
+    botsSaveEpics = config.GetBoolDefault("AiPlayerbot.BotsSaveEpics", true);
     //
     randomBotJoinLfg = config.GetBoolDefault("AiPlayerbot.RandomBotJoinLfg", true);
     logRandomBotJoinLfg = config.GetBoolDefault("AiPlayerbot.LogRandomBotJoinLfg", false);
@@ -308,6 +317,9 @@ bool PlayerbotAIConfig::Initialize()
 
     classRaceProbabilityTotal = 0;
 
+    useFixedClassRaceCounts = config.GetBoolDefault("AiPlayerbot.ClassRace.UseFixedClassRaceCounts", false);
+    RandomPlayerbotFactory factory(0);
+
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
         //Set race defaults
@@ -336,8 +348,6 @@ bool PlayerbotAIConfig::Initialize()
         }
     }
 
-    RandomPlayerbotFactory factory(0);
-
     //Race Class overrides
     for (uint32 race = 1; race < MAX_RACES; ++race)
     {
@@ -354,33 +364,47 @@ bool PlayerbotAIConfig::Initialize()
         }
     }
 
-    botCheats.clear();
-    LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.BotCheats", "taxi,item,breath"), botCheats);
+    if (useFixedClassRaceCounts)
+    {
 
-    botCheatMask = 0;
+        // Warn about unsupported config keys
+        for (uint32 race = 1; race < MAX_RACES; ++race)
+        {
+            std::string raceKey = "AiPlayerbot.ClassRaceProb.0." + std::to_string(race);
+            int val = config.GetIntDefault(raceKey.c_str(), -1);
+            if (val >= 0)
+                sLog.outError("Fixed class/race counts does not yet support '%s' (race-only). This config entry will be ignored.", raceKey.c_str());
+        }
 
-    if (std::find(botCheats.begin(), botCheats.end(), "taxi") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::taxi;
-    if (std::find(botCheats.begin(), botCheats.end(), "gold") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::gold;
-    if (std::find(botCheats.begin(), botCheats.end(), "health") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::health;
-    if (std::find(botCheats.begin(), botCheats.end(), "mana") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::mana;
-    if (std::find(botCheats.begin(), botCheats.end(), "power") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::power;
-    if (std::find(botCheats.begin(), botCheats.end(), "item") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::item;
-    if (std::find(botCheats.begin(), botCheats.end(), "cooldown") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::cooldown;
-    if (std::find(botCheats.begin(), botCheats.end(), "repair") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::repair;
-    if (std::find(botCheats.begin(), botCheats.end(), "movespeed") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::movespeed;
-    if (std::find(botCheats.begin(), botCheats.end(), "attackspeed") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::attackspeed;
-    if (std::find(botCheats.begin(), botCheats.end(), "breath") != botCheats.end())
-        botCheatMask |= (uint32)BotCheatMask::breath;
+        for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+        {
+            std::string classKey = "AiPlayerbot.ClassRaceProb." + std::to_string(cls);
+            int val = config.GetIntDefault(classKey.c_str(), -1);
+            if (val >= 0)
+                sLog.outError("Fixed class/race counts does not yet support '%s' (class-only). This config entry will be ignored.", classKey.c_str());
+        }
+
+        //Parse and build fixedClassRacesCounts
+        {
+            for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+	    {
+	        for (uint32 race = 1; race < MAX_RACES; ++race)
+	        {
+		    std::string key = "AiPlayerbot.ClassRaceProb." + std::to_string(cls) + "." + std::to_string(race);
+		    int count = config.GetIntDefault(key, -1);
+
+		    if (count >= 0 && factory.isAvailableRace(cls, race))
+		    {
+		        fixedClassRaceCounts[{cls, race}] = count;
+		    }
+	        }
+	    }
+        }
+    }
+
+    botCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.BotCheats", "taxi,item,breath")));
+
+    rndBotCheatMask = uint32(CheatAction::GetCheatMask(config.GetStringDefault("AiPlayerbot.RndBotCheats", "taxi,item,breath")));    
 
     LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.AllowedLogFiles", ""), allowedLogFiles);
     LoadListString<std::list<std::string>>(config.GetStringDefault("AiPlayerbot.DebugFilter", "add gathering loot,check values,emote,check mount state,jump"), debugFilter);
@@ -442,6 +466,9 @@ bool PlayerbotAIConfig::Initialize()
     playerbotsXPrate = config.GetFloatDefault("AiPlayerbot.XPRate", 1.0f);
     disableBotOptimizations = config.GetBoolDefault("AiPlayerbot.DisableBotOptimizations", false);
     disableActivityPriorities = config.GetBoolDefault("AiPlayerbot.DisableActivityPriorities", false);
+    forceActiveWhenNearPlayer = config.GetBoolDefault("AiPlayerbot.ForceActiveWhenNearPlayer", false);
+    limitCombatActivity = config.GetBoolDefault("AiPlayerbot.LimitCombatActivity", false);
+    guildOrderAlwaysActive = config.GetBoolDefault("AiPlayerbot.GuildOrderAlwaysActive", true);
     botActiveAlone = config.GetIntDefault("AiPlayerbot.botActiveAlone", 10);
     diffWithPlayer = config.GetIntDefault("AiPlayerbot.DiffWithPlayer", 100);
     diffEmpty = config.GetIntDefault("AiPlayerbot.DiffEmpty", 200);
@@ -458,6 +485,9 @@ bool PlayerbotAIConfig::Initialize()
     randomBotRaidNearby = config.GetBoolDefault("AiPlayerbot.RandomBotRaidNearby", true);
     randomBotGuildNearby = config.GetBoolDefault("AiPlayerbot.RandomBotGuildNearby", true);
     inviteChat = config.GetBoolDefault("AiPlayerbot.InviteChat", true);
+    enableOffSpecStrategies = config.GetBoolDefault("AiPlayerbot.EnableOffSpecStrategies", true);
+    useWanderAsDefaultFollowStrategy = config.GetBoolDefault("AiPlayerbot.UseWanderAsDefaultFollowStrategy", true);
+    defaultFormation = config.GetStringDefault("AiPlayerbot.DefaultFormation", "near");
 
     guildMaxBotLimit = config.GetIntDefault("AiPlayerbot.GuildMaxBotLimit", 1000);
 
@@ -538,6 +568,7 @@ bool PlayerbotAIConfig::Initialize()
 
     boostFollow = config.GetBoolDefault("AiPlayerbot.BoostFollow", false);
     turnInRpg = config.GetBoolDefault("AiPlayerbot.TurnInRpg", false);
+    shareTargets = config.GetBoolDefault("AiPlayerbot.ShareTargets", true);
     globalSoundEffects = config.GetBoolDefault("AiPlayerbot.GlobalSoundEffects", false);
     nonGmFreeSummon = config.GetBoolDefault("AiPlayerbot.NonGmFreeSummon", false);
 
@@ -657,7 +688,10 @@ bool PlayerbotAIConfig::Initialize()
     for (auto& channelName : blockedChannels)
         llmBlockedReplyChannels.insert(sourceName[channelName]);
 
-    //LLM END
+    {
+        std::string promptsFile = config.GetStringDefault("AiPlayerbot.LLMDefaultPromptsFile", "llm_character_card");
+        LoadLLMDefaultPrompts(promptsFile);
+    }
 
     // Gear progression system
     gearProgressionSystemEnabled = config.GetBoolDefault("AiPlayerbot.GearProgressionSystem.Enable", false);
@@ -910,7 +944,8 @@ std::string PlayerbotAIConfig::GetTimestampStr()
     //       MM     minutes (2 digits 00-59)
     //       SS     seconds (2 digits 00-59)
     char buf[20];
-    snprintf(buf, 20, "%04d-%02d-%02d %02d:%02d:%02d", aTm->tm_year + 1900, aTm->tm_mon + 1, aTm->tm_mday, aTm->tm_hour, aTm->tm_min, aTm->tm_sec);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", aTm);
+
     return std::string(buf);
 }
 
@@ -1078,7 +1113,7 @@ void PlayerbotAIConfig::LoadTalentSpecs()
 
                         TalentSpec linkSpec(&classSpecs[cls].baseSpec, specLink);
 
-                        if (!linkSpec.CheckTalents(level, &out))
+                        if (!linkSpec.CheckTalents(TalentSpec::LeveltoPoints(level), &out))
                         {
                             sLog.outErrorDb("Error with premade spec: %s", specLink.c_str());
                             sLog.outErrorDb("%s", out.str().c_str());
@@ -1154,4 +1189,70 @@ void PlayerbotAIConfig::LoadTalentSpecs()
             sLog.outErrorDb("!!!!!!!!!!! randomBotMaxLevel and the talentspec levels are below this expansions max level. Please check if you have the correct config file!!!!!!");
 
     }
+}
+
+void PlayerbotAIConfig::LoadLLMDefaultPrompts(const std::string& fileName)
+{
+    std::ifstream file(fileName);
+    if (!file.is_open())
+    {
+        sLog.outString("LLM default prompts file '%s' not found or unreadable.", fileName.c_str());
+        return;
+    }
+
+    std::string line;
+    uint32 loaded = 0;
+
+    std::string likePattern = std::string("manual saved string::llmdefaultprompt>%");
+    CharacterDatabase.escape_string(likePattern);
+
+    while (std::getline(file, line))
+    {
+        boost::trim(line);
+        if (line.empty() || line.front() == '#')
+            continue;
+
+        size_t delim = line.find("::");
+        if (delim == std::string::npos)
+        {
+            sLog.outError("LLM prompts file '%s' contains invalid line (missing '::'): %s", fileName.c_str(), line.c_str());
+            continue;
+        }
+
+        std::string name = line.substr(0, delim);
+        std::string text = line.substr(delim + 2);
+        boost::trim(name);
+        boost::trim(text);
+
+        if (name.empty())
+        {
+            sLog.outError("LLM prompts file '%s' contains empty name: %s", fileName.c_str(), line.c_str());
+            continue;
+        }
+
+        auto result = CharacterDatabase.PQuery("SELECT guid FROM characters WHERE name = '%s' LIMIT 1", name.c_str());
+        if (!result)
+        {
+            sLog.outError("Character '%s' not found in characters DB while loading '%s'.", name.c_str(), fileName.c_str());
+            continue;
+        }
+
+        Field* fields = result->Fetch();
+        uint32 guid = fields[0].GetUInt32();
+
+        CharacterDatabase.PExecute(
+            "DELETE FROM `ai_playerbot_db_store` WHERE `guid` = '%u' AND `key` = '%s' AND `value` LIKE '%s'",
+            guid, "value", likePattern.c_str());
+
+        std::string dbValue = std::string("manual saved string::llmdefaultprompt>") + text;
+        CharacterDatabase.escape_string(dbValue);
+
+        CharacterDatabase.PExecute(
+            "INSERT INTO `ai_playerbot_db_store` (`guid`, `preset`, `key`, `value`) VALUES ('%u', '%s', '%s', '%s')",
+            guid, "", "value", dbValue.c_str());
+
+        ++loaded;
+    }
+
+    sLog.outString("Loaded %u LLM character personalities from %s", loaded, fileName.c_str());
 }

@@ -174,6 +174,9 @@ uint32 CurrentMountSpeedValue::Calculate()
 {
     Unit* unit = AI_VALUE(Unit*, getQualifier());
 
+    if (!unit)
+        return 0;
+
     uint32 mountSpeed = 0;
 
     for (uint32 auraType = SPELL_AURA_BIND_SIGHT; auraType < TOTAL_AURAS; auraType++)
@@ -271,7 +274,7 @@ std::string MountListValue::Format()
     for (auto& mount : this->Calculate())
     {
         std::string speed = std::to_string(mount.GetSpeed(false) + 1) + "%" + (mount.GetSpeed(true) ? ("/" + (std::to_string(mount.GetSpeed(true) + 1) + "%")) : "");
-        out << (mount.IsItem() ? "(item)" : "(spell)") << chat->formatSpell(mount.GetSpellId()) << "(" << speed.c_str() << "),";
+        out << (mount.IsItem() ? "(item)" : "(spell)") << chat->formatSpell(mount.GetSpellId()) << "(" << speed << "),";
     }
     out << "}";
     return out.str();
@@ -352,7 +355,19 @@ bool CanTrainMountValue::Calculate()
 
 bool CanBuyMountValue::Calculate()
 {
-    if (bot->GetLevel() < 40)
+#ifdef MANGOSBOT_ZERO
+    uint8 minRidingLevel = 40;
+#endif
+#ifdef MANGOSBOT_ONE
+    uint8 minRidingLevel = 30;
+#endif
+#ifdef MANGOSBOT_TWO
+    uint8 minRidingLevel = 20;
+#endif
+    if (bot->GetLevel() < minRidingLevel)
+        return false;
+
+    if (!AI_VALUE(bool, "can buy"))
         return false;
 
     if (AI_VALUE2(uint32, "money needed for", (uint32)NeedMoneyFor::mount) == 0)

@@ -22,9 +22,11 @@ namespace ai
         virtual std::vector<std::string> GetUsedValues() { return {}; }
 #endif 
         virtual bool Execute(Event& event) override;
-    private:
+        virtual bool isUsefulWhenStunned() override { return true; }
+
         static BotCheatMask GetCheatMask(std::string cheat);
         static std::string GetCheatName(BotCheatMask cheatMask);
+    public:
         void ListCheats(Player* requester);
         void AddCheat(BotCheatMask cheatMask);
         void RemCheat(BotCheatMask cheatMask);

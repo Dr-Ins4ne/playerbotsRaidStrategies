@@ -54,7 +54,7 @@ void AiObjectContext::ClearValues(std::string findName)
         if (!value)
             continue;
 
-        if (!findName.empty() && i->find(findName) == std::string::npos)
+        if (!findName.empty() && i->find(findName) != 0)
             continue;
 
         valueContexts.Erase(*i);

@@ -134,6 +134,8 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
     ProcessTriggers(minimal);
     PushDefaultActions();
 
+    std::vector<Action*> modifiedActions;
+
     int iterations = 0;
     int iterationsPerTick = queue.Size() * (minimal ? (uint32)(sPlayerbotAIConfig.iterationsPerTick / 2) : sPlayerbotAIConfig.iterationsPerTick);
     do 
@@ -154,7 +156,7 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
             if (!event.getSource().empty())
                 actionName += " <" + event.getSource() + ">";
             
-            auto pmo1 = sPerformanceMonitor.start(PERF_MON_ACTION, actionName, &aiObjectContext->performanceStack);
+            auto pmo1 = sPerformanceMonitor.start(PERF_MON_ACTION, actionName, ai);
 
             if(action)
                 action->setRelevance(relevance);
@@ -174,7 +176,14 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                     if (!event.getSource().empty())
                         out << " [" << event.getSource() << "]";
 
-                    ai->TellPlayerNoFacing(ai->GetMaster(), out);
+                    if (ai->GetMaster())
+                    {
+                        ai->TellPlayerNoFacing(ai->GetMaster(), out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+                    }
+                    else
+                    {
+                        ai->GetBot()->Say(out.str(), (ai->GetBot()->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+                    }
                 }
                 LogAction("A:%s - UNKNOWN", actionNode->getName().c_str());
             }
@@ -183,29 +192,33 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                 bool isUseful = false;
                 if (!isStunned || action->isUsefulWhenStunned())
                 {
-                    auto pmo2 = sPerformanceMonitor.start(PERF_MON_ACTION, "isUseful", &aiObjectContext->performanceStack);
+                    auto pmo2 = sPerformanceMonitor.start(PERF_MON_ACTION, "isUseful", ai);
                     isUseful = action->isUseful();
                     pmo2.reset();
                 }
 
                 if (isUseful)
                 {
-                    for (std::list<Multiplier*>::iterator i = multipliers.begin(); i != multipliers.end(); i++)
+                    if (std::find(modifiedActions.begin(), modifiedActions.end(), action) == modifiedActions.end())
                     {
-                        Multiplier* multiplier = *i;
-                        relevance *= multiplier->GetValue(action);
-
-                        action->setRelevance(relevance);
-                        if (!relevance)
+                        for (std::list<Multiplier*>::iterator i = multipliers.begin(); i != multipliers.end(); i++)
                         {
-                            LogAction("Multiplier %s made action %s useless", multiplier->getName().c_str(), action->getName().c_str());
-                            break;
+                            Multiplier* multiplier = *i;
+                            relevance *= multiplier->GetValue(action);
+
+                            action->setRelevance(relevance);
+                            if (!relevance)
+                            {
+                                LogAction("Multiplier %s made action %s useless", multiplier->getName().c_str(), action->getName().c_str());
+                                break;
+                            }
                         }
                     }
 
                     ActionBasket* peekAction = queue.Peek();
                     if (relevance < oldRelevance && peekAction && peekAction->getRelevance() > relevance) //Relevance changed. Try again.
                     {
+                        modifiedActions.push_back(action);
                         PushAgain(actionNode, relevance, event);
                         continue;
                     }
@@ -220,13 +233,13 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                         }
                     }
 
-                    auto pmo3 = sPerformanceMonitor.start(PERF_MON_ACTION, "isPossible", &aiObjectContext->performanceStack);
+                    auto pmo3 = sPerformanceMonitor.start(PERF_MON_ACTION, "isPossible", ai);
                     bool isPossible = action->isPossible();
                     pmo3.reset();
 
                     if (isPossible && relevance)
                     {
-                        auto pmo4 = sPerformanceMonitor.start(PERF_MON_ACTION, "Execute", &aiObjectContext->performanceStack);
+                        auto pmo4 = sPerformanceMonitor.start(PERF_MON_ACTION, "Execute", ai);
                         actionExecuted = ListenAndExecute(action, event);
                         pmo4.reset();
 
@@ -265,7 +278,14 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                             if (!event.getSource().empty())
                                 out << " [" << event.getSource() << "]";
 
-                            ai->TellPlayerNoFacing(ai->GetMaster(), out);
+        if (ai->GetMaster())
+                            {
+                                ai->TellPlayerNoFacing(ai->GetMaster(), out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+                            }
+                            else
+                            {
+                                ai->GetBot()->Say(out.str(), (ai->GetBot()->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+                            }
                         }
                         LogAction("A:%s - IMPOSSIBLE", action->getName().c_str());
                         MultiplyAndPush(actionNode->getAlternatives(), relevance + 0.03, false, event, "alt");
@@ -286,7 +306,14 @@ bool Engine::DoNextAction(Unit* unit, int depth, bool minimal, bool isStunned)
                         if (!event.getSource().empty())
                             out << " [" << event.getSource() << "]";
 
-                        ai->TellPlayerNoFacing(ai->GetMaster(), out);
+        if (ai->GetMaster())
+                        {
+                            ai->TellPlayerNoFacing(ai->GetMaster(), out, PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, true, false);
+                        }
+                        else
+                        {
+                            ai->GetBot()->Say(out.str(), (ai->GetBot()->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+                        }
                     }
                     lastRelevance = relevance;
                     LogAction("A:%s - USELESS", action->getName().c_str());
@@ -410,24 +437,24 @@ ActionResult Engine::ExecuteAction(const std::string& name, Event& event)
     ActionNode* actionNode = CreateActionNode(name);
     if (actionNode)
     {
-        auto pmo1 = sPerformanceMonitor.start(PERF_MON_ACTION, name, &aiObjectContext->performanceStack);
+        auto pmo1 = sPerformanceMonitor.start(PERF_MON_ACTION, name, ai);
         Action* action = InitializeAction(actionNode);
         if (action)
         {
-            auto pmo2 = sPerformanceMonitor.start(PERF_MON_ACTION, "isUseful", &aiObjectContext->performanceStack);
+            auto pmo2 = sPerformanceMonitor.start(PERF_MON_ACTION, "isUseful", ai);
             bool isUseful = action->isUseful();
             pmo2.reset();
             
             if (isUseful)
             {
-                auto pmo3 = sPerformanceMonitor.start(PERF_MON_ACTION, "isPossible", &aiObjectContext->performanceStack);
+                auto pmo3 = sPerformanceMonitor.start(PERF_MON_ACTION, "isPossible", ai);
                 bool isPossible = action->isPossible();
                 pmo3.reset();
 
                 if (isPossible)
                 {
                     action->MakeVerbose(event.getOwner() != nullptr);
-                    auto pmo4 = sPerformanceMonitor.start(PERF_MON_ACTION, "Execute", &aiObjectContext->performanceStack);
+                    auto pmo4 = sPerformanceMonitor.start(PERF_MON_ACTION, "Execute", ai);
                     bool executionResult = ListenAndExecute(action, event);
                     pmo4.reset();
 
@@ -567,7 +594,6 @@ Strategy* Engine::GetStrategy(const std::string& name) const
 
 void Engine::ProcessTriggers(bool minimal)
 {
-    std::unordered_map<Trigger*, Event> fires;
     for (std::list<TriggerNode*>::iterator i = triggers.begin(); i != triggers.end(); i++)
     {
         TriggerNode* node = *i;
@@ -583,12 +609,11 @@ void Engine::ProcessTriggers(bool minimal)
         if (!trigger)
             continue;
 
-        auto it = fires.find(trigger);
-        if (it == fires.end() && (testMode || trigger->needCheck()))
+        if (testMode || trigger->IsAlreadyTriggered() || trigger->needCheck())
         {
             if (minimal && node->getFirstRelevance() < 100)
                 continue;
-            auto pmo = sPerformanceMonitor.start(PERF_MON_TRIGGER, trigger->getName(), &aiObjectContext->performanceStack);
+            auto pmo = sPerformanceMonitor.start(PERF_MON_TRIGGER, trigger->getName(), ai);
             Event event = trigger->Check();
 
 #ifdef PLAYERBOT_ELUNA
@@ -600,22 +625,9 @@ void Engine::ProcessTriggers(bool minimal)
             if (!event)
                 continue;
 
-            fires[trigger] = event;
+            MultiplyAndPush(node->getHandlers(), 0.0f, false, event, "trigger");
             LogAction("T:%s", trigger->getName().c_str());
         }
-    }
-
-    for (std::list<TriggerNode*>::iterator i = triggers.begin(); i != triggers.end(); i++)
-    {
-        TriggerNode* node = *i;
-        Trigger* trigger = node->getTrigger();
-        auto it = fires.find(trigger);
-        if (it == fires.end())
-            continue;
-
-        Event& event = it->second;
-
-        MultiplyAndPush(node->getHandlers(), 0.0f, false, event, "trigger");
     }
 
     for (std::list<TriggerNode*>::iterator i = triggers.begin(); i != triggers.end(); i++)
@@ -701,6 +713,7 @@ bool Engine::ListenAndExecute(Action* action, Event& event)
     Action* prevExecutedAction = lastExecutedAction;
     if (actionExecutionListeners.Before(action, event))
     {
+        ai->SetLastEvent(event);
         actionExecuted = actionExecutionListeners.AllowExecution(action, event) ? action->Execute(event) : true;
         if (actionExecuted)
         {
@@ -731,7 +744,7 @@ bool Engine::ListenAndExecute(Action* action, Event& event)
             const uint32 actionDuration = action->GetDuration();
             if (actionDuration > 0)
             {
-                out << " (duration: " << ((float)actionDuration / IN_MILLISECONDS) << "s)";
+                out << " (duration: " << ((float)actionDuration / static_cast<float>(IN_MILLISECONDS)) << "s)";
             }
         }
 

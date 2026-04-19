@@ -4,6 +4,7 @@
 #include "CraftValues.h"
 #include "MountValues.h"
 #include "BudgetValues.h"
+#include "GuildValues.h"
 
 #include "playerbot/RandomItemMgr.h"
 #include "playerbot/ServerFacade.h"
@@ -105,10 +106,52 @@ ItemUsage ItemUsageValue::Calculate()
         return ItemUsage::ITEM_USAGE_FORCE_NEED;
 
     if (forceUsage == ForceItemUsage::FORCE_USAGE_KEEP)
+    {
+        ItemUsage equip = QueryItemUsageForEquip(itemQualifier, bot);
+        if (equip == ItemUsage::ITEM_USAGE_EQUIP || equip == ItemUsage::ITEM_USAGE_BAD_EQUIP || equip == ItemUsage::ITEM_USAGE_BROKEN_EQUIP)
+            return equip;
+        return ItemUsage::ITEM_USAGE_KEEP;
+    }
+
+    if (forceUsage == ForceItemUsage::FORCE_USAGE_EQUIP)
+    {
+        ItemUsage equip = QueryItemUsageForEquip(itemQualifier, bot);
+        if (equip == ItemUsage::ITEM_USAGE_EQUIP || equip == ItemUsage::ITEM_USAGE_BAD_EQUIP || equip == ItemUsage::ITEM_USAGE_BROKEN_EQUIP)
+            return equip;
+        if (bot->CanUseItem(proto) == EQUIP_ERR_OK && proto->InventoryType != INVTYPE_NON_EQUIP)
+            return ItemUsage::ITEM_USAGE_EQUIP;
+        return ItemUsage::ITEM_USAGE_KEEP;
+    }
+
+    if (forceUsage == ForceItemUsage::FORCE_USAGE_BAG)
         return ItemUsage::ITEM_USAGE_KEEP;
 
-    //KEEP HEARTHSTONE
-    if (proto->ItemId == 6948)
+    if (bot->GetGuildId())
+    {
+        std::vector<GuildShareItemEntry> shareList = AI_VALUE(std::vector<GuildShareItemEntry>, "guild share list");
+        if (!shareList.empty())
+        {
+            for (const auto& entry : shareList)
+            {
+                if (entry.itemId == itemId)
+                    return ItemUsage::ITEM_USAGE_KEEP;
+
+                ItemPrototype const* craftProto = sObjectMgr.GetItemPrototype(entry.itemId);
+                if (craftProto)
+                {
+                    std::vector<std::pair<uint32, uint32>> reagents = GetAllReagentItemIdsForCraftingItem(craftProto);
+                    for (const auto& [reagentId, reagentCount] : reagents)
+                    {
+                        if (reagentId == itemId)
+                            return ItemUsage::ITEM_USAGE_KEEP;
+                    }
+                }
+            }
+        }
+    }
+
+    //KEEP HEARTHSTONE/SCOURGESTONE
+    if (proto->ItemId == 6948 || proto->ItemId == 40582)
         return ItemUsage::ITEM_USAGE_KEEP;
 
     //WARLOCKS GOT TO KEEP SOULSHARDS (keep at least 10)
@@ -164,9 +207,9 @@ ItemUsage ItemUsageValue::Calculate()
             if (proto->Class == ITEM_CLASS_RECIPE && stacks > 0) //Only buy one recipe.
                 return ItemUsage::ITEM_USAGE_KEEP;
 
-            if (stacks < 2)
+            if (stacks < 1)
                 return ItemUsage::ITEM_USAGE_SKILL; //Buy more.
-            else if (stacks == 2)
+            else if (stacks == 1)
                 return ItemUsage::ITEM_USAGE_KEEP; //Do not buy more.
         }
     }
@@ -317,17 +360,23 @@ ItemUsage ItemUsageValue::Calculate()
             return ItemUsage::ITEM_USAGE_KEEP;
     }
 
-    //AMMO
-    if ((proto->Class == ITEM_CLASS_PROJECTILE || (proto->Class == ITEM_CLASS_WEAPON && proto->SubClass == ITEM_SUBCLASS_WEAPON_THROWN)) && bot->CanUseItem(proto) == EQUIP_ERR_OK)
-        if ((bot->getClass() == CLASS_HUNTER && proto->Class != ITEM_CLASS_WEAPON) || bot->getClass() == CLASS_ROGUE || bot->getClass() == CLASS_WARRIOR)
+    // AMMO
+if ((proto->Class == ITEM_CLASS_PROJECTILE || 
+     (proto->Class == ITEM_CLASS_WEAPON && proto->SubClass == ITEM_SUBCLASS_WEAPON_THROWN)) &&
+    bot->CanUseItem(proto) == EQUIP_ERR_OK)
+{
+    if ((bot->getClass() == CLASS_HUNTER && proto->Class != ITEM_CLASS_WEAPON) ||
+        bot->getClass() == CLASS_ROGUE ||
+        bot->getClass() == CLASS_WARRIOR)
+    {
+        Item* const pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+        if (pItem)
         {
-            Item* const pItem = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
-            if (pItem)
+            uint32 ammoClass = ITEM_CLASS_PROJECTILE;
+            uint32 subClass = 0;
+
+            switch (pItem->GetProto()->SubClass)
             {
-                uint32 ammoClass = ITEM_CLASS_PROJECTILE;
-                uint32 subClass = 0;
-                switch (pItem->GetProto()->SubClass)
-                {
                 case ITEM_SUBCLASS_WEAPON_GUN:
                     subClass = ITEM_SUBCLASS_BULLET;
                     break;
@@ -339,45 +388,51 @@ ItemUsage ItemUsageValue::Calculate()
                     ammoClass = ITEM_CLASS_WEAPON;
                     subClass = ITEM_SUBCLASS_WEAPON_THROWN;
                     break;
-                }
+            }
 
-                if (proto->Class == ammoClass && proto->SubClass == subClass)
+            if (proto->Class == ammoClass && proto->SubClass == subClass)
+            {
+                uint32 currentAmmoId = bot->GetUInt32Value(PLAYER_AMMO_ID);
+                const ItemPrototype* currentAmmoProto = nullptr;
+                if (currentAmmoId)
+                    currentAmmoProto = sObjectMgr.GetItemPrototype(currentAmmoId);
+
+                float betterAmmoStacks = BetterStacks(proto, "ammo"); // how much better ammo we have
+                float needAmmo = (bot->getClass() == CLASS_HUNTER) ? 8 : 2;
+
+                if (ai->HasCheat(BotCheatMask::item))
+                    needAmmo = 1;
+
+                                    // fallback: equip any ammo if no ammo equipped
+                if (!currentAmmoId)
                 {
-                    uint32 currentAmmoId = bot->GetUInt32Value(PLAYER_AMMO_ID);
-                    const ItemPrototype* currentAmmoproto = nullptr;
-                    if (currentAmmoId)
-                        currentAmmoproto = sObjectMgr.GetItemPrototype(currentAmmoId);
-
-                    float ammo = BetterStacks(proto, "ammo");
-                    float needAmmo = (bot->getClass() == CLASS_HUNTER) ? 8 : 2;
-
-                    if (ai->HasCheat(BotCheatMask::item))
-                        needAmmo = 1;
-
-                    if (ammo < 0) //No current better ammo.
-                    {
-                        if (!currentAmmoId)
-                            return ItemUsage::ITEM_USAGE_EQUIP;
-
-                        if (currentAmmoproto->ItemLevel > proto->ItemLevel)
-                            return ItemUsage::ITEM_USAGE_EQUIP;
-                    }
-
-                    if (ammo < needAmmo) //We already have enough of the current ammo.
-                    {
-                        ammo += CurrentStacks(ai, proto);
-
-                        if (ammo < needAmmo)         //Buy ammo to get to the proper supply
-                            return ItemUsage::ITEM_USAGE_AMMO;
-                        else if (ammo < needAmmo + 1)
-                            return ItemUsage::ITEM_USAGE_KEEP;  //Keep the ammo until we have too much.
-                    }
+                                    // check if this proto exists in bags
+                if (ai->HasItemInInventory(proto->ItemId))
+                return ItemUsage::ITEM_USAGE_EQUIP;
                 }
+
+                // If no better ammo exists
+                if (betterAmmoStacks <= 0)
+                {
+                    // Equip this ammo if not already equipped
+                    if (currentAmmoId != proto->ItemId)
+                        return ItemUsage::ITEM_USAGE_EQUIP;
+                }
+
+                // If this ammo is already equipped or after equipping
+                float totalStacks = betterAmmoStacks + CurrentStacks(ai, proto);
+
+                if (totalStacks < needAmmo)            // Not enough ammo, buy more
+                    return ItemUsage::ITEM_USAGE_AMMO;
+                else if (totalStacks < needAmmo + 1)   // Enough ammo, but keep it
+                    return ItemUsage::ITEM_USAGE_KEEP;
             }
         }
+    }
+}
 
     //KEEP
-    if (proto->Quality >= ITEM_QUALITY_EPIC && !sRandomPlayerbotMgr.IsRandomBot(bot))
+    if (proto->Quality >= ITEM_QUALITY_EPIC && sPlayerbotAIConfig.botsSaveEpics && !sRandomPlayerbotMgr.IsRandomBot(bot))
         return ItemUsage::ITEM_USAGE_KEEP;
 
     if (proto->Class == ItemClass::ITEM_CLASS_CONSUMABLE)
@@ -405,8 +460,10 @@ ItemUsage ItemUsageValue::Calculate()
         }
     }
 
+    uint32 ahPrice = 0;
+
     //VENDOR/AH
-    if (proto->SellPrice > 0)
+    if (proto->SellPrice > 0 || AI_VALUE2_EXISTS(int, "manual int", "expected ah sell price for " + std::to_string(itemId),-1) != 0)
     {
         ItemUsage sellUsage = ItemUsage::ITEM_USAGE_VENDOR;
 
@@ -423,6 +480,11 @@ ItemUsage ItemUsageValue::Calculate()
                 sellUsage = ItemUsage::ITEM_USAGE_NONE;
         }
 
+#ifdef MANGOSBOT_TWO
+        if(bot->GetMapId() == 609)
+            return sellUsage;
+#endif
+
         //if item value is significantly higher than its vendor sell price and we actually have money to place the item on ah.
         uint32 ahMoney = AI_VALUE2(uint32, "free money for", (uint32)NeedMoneyFor::ah);
 
@@ -438,7 +500,11 @@ ItemUsage ItemUsageValue::Calculate()
         uint32 sellPrice = proto->SellPrice * count;
 
         uint32 depositCost = GetAhDepositCost(proto, count);
-        uint32 ahPrice = GetBotAHSellMinPrice(proto) * count;
+        
+        uint32 ahPrice = ItemUsageValue::GetBotSellPrice(proto, bot) * count;
+
+        if(proto->SellPrice == 0)
+            SET_AI_VALUE2(int, "manual int", "expected ah sell price for " + std::to_string(itemId), ahPrice);
 
         if (ahPrice < depositCost)
             return sellUsage; //The AH desposit is higher than the money gained.
@@ -580,6 +646,17 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
         shouldEquip = false;
 
     Item* oldItem = bot->GetItemByPos(dest);
+    uint8 slot = dest & 255;
+
+    ai->TellDebug(ai->GetMaster(), "Checking equip: " + chat->formatItem(itemProto) + " to " + chat->formatSlot(slot) + " vs " + (oldItem ? chat->formatItem(oldItem->GetProto()) : "empty"), "debug equip");
+
+    if (itemProto->Class == ITEM_CLASS_WEAPON &&
+        !sRandomItemMgr.ShouldEquipWeaponForSpec(bot->getClass(), specId, itemProto))
+    {
+        if (oldItem)
+            return ItemUsage::ITEM_USAGE_NONE;
+    }
+
 
     //No item equiped
     if (!oldItem)
@@ -591,6 +668,12 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     }
 
     const ItemPrototype* oldItemProto = oldItem->GetProto();
+
+    if(MustEquipForQuest(itemProto, bot) && !MustEquipForQuest(oldItemProto, bot))
+        return ItemUsage::ITEM_USAGE_EQUIP;
+
+    if (MustEquipForQuest(oldItemProto, bot))
+        return ItemUsage::ITEM_USAGE_KEEP;
 
     if (itemProto->Class == ITEM_CLASS_ARMOR && itemProto->InventoryType == INVTYPE_TABARD)
     {
@@ -622,7 +705,7 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     }
     else
     {
-        shouldEquip = itemProto->Quality >= oldItemProto->Quality && itemProto->ItemLevel >= oldItemProto->ItemLevel;
+        shouldEquip = itemProto->Quality >= oldItemProto->Quality && itemProto->ItemLevel > oldItemProto->ItemLevel;
     }
 
     if (AI_VALUE2_EXISTS(ForceItemUsage, "force item usage", itemProto->ItemId, ForceItemUsage::FORCE_USAGE_NONE) == ForceItemUsage::FORCE_USAGE_EQUIP) //New item is forced. Always equip it.
@@ -631,15 +714,11 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemQualifier& itemQualifier, P
     bool existingShouldEquip = true;
     if (oldItemProto->Class == ITEM_CLASS_WEAPON && !oldStatWeight)
         existingShouldEquip = false;
-    if (oldItemProto->Class == ITEM_CLASS_ARMOR && !statWeight)
+    if (oldItemProto->Class == ITEM_CLASS_ARMOR && !oldStatWeight)
         existingShouldEquip = false;
 
     //Compare items based on item level, quality.
     bool isBetter = false;
-    if (!statWeight || !oldStatWeight)
-    {
-        isBetter = (itemProto->Quality > oldItemProto->Quality && itemProto->ItemLevel == oldItemProto->ItemLevel) || (itemProto->Quality == oldItemProto->Quality && itemProto->ItemLevel > oldItemProto->ItemLevel);
-    }
     if (statWeight > oldStatWeight)
         isBetter = true;
     else if (statWeight == oldStatWeight && itemProto->Quality > oldItemProto->Quality)
@@ -750,8 +829,8 @@ std::string ItemUsageValue::ReasonForNeed(ItemUsage usage, ItemQualifier qualifi
         if (!qualifier)
             return BOT_TEXT2("to repost on AH.", placeholders);
 
-        placeholders["%price_min"] = ChatHelper::formatMoney(ItemUsageValue::GetBotAHSellMinPrice(qualifier.GetProto()) * count);
-        placeholders["%price_max"] = ChatHelper::formatMoney(ItemUsageValue::GetBotAHSellMaxPrice(qualifier.GetProto()) * count);
+        placeholders["%price_min"] = ChatHelper::formatMoney(ItemUsageValue::GetBotSellPrice(qualifier.GetProto(), bot) * 0.75 * count);
+        placeholders["%price_max"] = ChatHelper::formatMoney(ItemUsageValue::GetBotSellPrice(qualifier.GetProto(), bot) * count);
         return BOT_TEXT2("to repost on AH for %price_min to %price_max.", placeholders);
     case ItemUsage::ITEM_USAGE_VENDOR:
         if (!qualifier)
@@ -1144,7 +1223,6 @@ bool ItemUsageValue::IsHealingPotion(ItemPrototype const* proto)
         (proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_CONSUMABLE
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_POTION
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_FLASK
-            || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_POTION
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_CONSUMABLE_OTHER))
     {
         for (int j = 0; j < MAX_ITEM_PROTO_SPELLS; j++)
@@ -1168,7 +1246,6 @@ bool ItemUsageValue::IsManaPotion(ItemPrototype const* proto)
         (proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_CONSUMABLE
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_POTION
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_FLASK
-            || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_POTION
             || proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_CONSUMABLE_OTHER))
     {
         for (int j = 0; j < MAX_ITEM_PROTO_SPELLS; j++)
@@ -1192,6 +1269,27 @@ bool ItemUsageValue::IsBandage(ItemPrototype const* proto)
         && proto->SubClass == ItemSubclassConsumable::ITEM_SUBCLASS_BANDAGE)
     {
         return true;
+    }
+
+    return false;
+}
+
+bool ItemUsageValue::IsAntiVenom(ItemPrototype const* proto)
+{
+    if (proto->Class == ItemClass::ITEM_CLASS_CONSUMABLE)
+    {
+        for (int j = 0; j < MAX_ITEM_PROTO_SPELLS; j++)
+        {
+            const SpellEntry* const spellInfo = sServerFacade.LookupSpellInfo(proto->Spells[j].SpellId);
+            if (spellInfo)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    if (spellInfo->Effect[i] == SPELL_EFFECT_DISPEL && spellInfo->EffectMiscValue[i] == DISPEL_POISON)
+                        return true;
+                }
+            }
+        }
     }
 
     return false;
@@ -1231,6 +1329,8 @@ uint32 ItemUsageValue::GetRecipeSpell(ItemPrototype const* proto)
 
 void ItemUsageValue::PopulateProfessionReagentIds()
 {
+    m_allReagentItemIdsForCraftingSkillsVector.clear();
+
     for (uint32 i = 0; i < sSkillLineStore.GetNumRows(); ++i)
     {
         SkillLineEntry const* skillInfo = sSkillLineStore.LookupEntry(i);
@@ -1271,6 +1371,7 @@ void ItemUsageValue::PopulateProfessionReagentIds()
 
 void ItemUsageValue::PopulateReagentItemIdsForCraftableItemIds()
 {
+    m_craftingReagentItemIdsForCraftableItem.clear();
     for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
     {
         SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
@@ -1297,7 +1398,7 @@ void ItemUsageValue::PopulateReagentItemIdsForCraftableItemIds()
 
                             uint32 reagentItemId = spellInfo->Reagent[x];
                             uint32 reagentsRequiredCount = spellInfo->ReagentCount[x];
-                            if (reagentItemId)
+                            if (reagentItemId && ObjectMgr::GetItemPrototype(reagentItemId))
                             {
                                 m_craftingReagentItemIdsForCraftableItem[craftedItemId].push_back({ reagentItemId , reagentsRequiredCount });
                             }
@@ -1311,7 +1412,7 @@ void ItemUsageValue::PopulateReagentItemIdsForCraftableItemIds()
 
 void ItemUsageValue::PopulateSoldByVendorItemIds()
 {
-    if (auto result = WorldDatabase.PQuery("%s", "SELECT item, entry FROM npc_vendor"))
+    if (auto result = WorldDatabase.PQuery("%s", "SELECT distinct item FROM npc_vendor"))
     {
         BarGoLink bar(result->GetRowCount());
         do
@@ -1321,11 +1422,15 @@ void ItemUsageValue::PopulateSoldByVendorItemIds()
             uint32 entry = fields[0].GetUInt32();
             if (!entry)
                 continue;
+
+            if (!ObjectMgr::GetItemPrototype(entry))
+                continue;
+
             m_allItemIdsSoldByAnyVendors.insert(fields[0].GetUInt32());
         } while (result->NextRow());
     }
 
-    if (auto result = WorldDatabase.PQuery("%s", "SELECT item, entry FROM npc_vendor WHERE maxcount > 0"))
+    if (auto result = WorldDatabase.PQuery("%s", "SELECT distinct item FROM npc_vendor WHERE maxcount > 0"))
     {
         BarGoLink bar(result->GetRowCount());
         do
@@ -1335,6 +1440,10 @@ void ItemUsageValue::PopulateSoldByVendorItemIds()
             uint32 entry = fields[0].GetUInt32();
             if (!entry)
                 continue;
+
+            if (!ObjectMgr::GetItemPrototype(entry))
+                continue;
+
             m_itemIdsSoldByAnyVendorsWithLimitedMaxCount.insert(fields[0].GetUInt32());
         } while (result->NextRow());
     }
@@ -1358,6 +1467,20 @@ std::vector<std::pair<uint32, uint32>> ItemUsageValue::GetAllReagentItemIdsForCr
 bool ItemUsageValue::IsItemSoldByAnyVendor(ItemPrototype const* proto)
 {
     return m_allItemIdsSoldByAnyVendors.count(proto->ItemId) > 0;
+}
+
+bool ItemUsageValue::MustEquipForQuest(ItemPrototype const* proto, Player* bot)
+{
+    PlayerbotAI* ai = bot->GetPlayerbotAI();
+    AiObjectContext* context = ai->GetAiObjectContext();
+
+    switch (proto->ItemId)
+    {
+    case 39371:
+        return AI_VALUE2(bool, "need quest objective", 12720);
+    }
+
+    return false;
 }
 
 bool ItemUsageValue::IsItemSoldByAnyVendorButHasLimitedMaxCount(ItemPrototype const* proto)
@@ -1392,31 +1515,6 @@ uint32 ItemUsageValue::GetAHMedianBuyoutPricePerItem(ItemPrototype const* proto)
         size_t n = prices.size() / 2;
         std::nth_element(prices.begin(), prices.begin() + n, prices.end());
         return prices[n];
-
-        /*
-        auto query = CharacterDatabase.PQuery(
-            "  SELECT item_template, AVG(median)"
-            "  FROM (SELECT item_template, (buyoutprice / item_count) median"
-            "          FROM (SELECT item_template, item_count, buyoutprice, @rownum:= @rownum + 1 as `rownumber`, @total_rows:= @rownum"
-            "                  FROM auction soh, (SELECT @rownum:= 0) r WHERE item_template = '%u'"
-            "                 ORDER BY(buyoutprice / item_count)) x"
-            "         WHERE x.rownumber IN(FLOOR((@total_rows + 1) / 2), FLOOR((@total_rows + 2) / 2))) y"
-            "      GROUP BY item_template",
-            proto->ItemId
-        );
-        if (query)
-        {
-            do
-            {
-                Field* fields = query->Fetch();
-
-                uint32 itemId = (fields[0].GetUInt32());
-                uint32 medianPrice = (fields[1].GetUInt32());
-
-                return medianPrice;
-            } while (query->NextRow());
-        }
-        */
     }
 
     return 0;
@@ -1749,17 +1847,11 @@ uint32 ItemUsageValue::GetItemBaseValue(ItemPrototype const* proto, uint8 maxRea
     return static_cast<uint32>(proto->SellPrice * GetRarityPriceMultiplier(proto) * GetLevelPriceMultiplier(proto) * 1.5f);
 }
 
-/*
-* bots buy at this price
-*/
 uint32 ItemUsageValue::GetBotBuyPrice(ItemPrototype const* proto, Player* bot)
 {
     return static_cast<uint32>(GetItemBaseValue(proto) * sRandomPlayerbotMgr.GetBuyMultiplier(bot));
 }
 
-/*
-* bots sell at this price
-*/
 uint32 ItemUsageValue::GetBotSellPrice(ItemPrototype const* proto, Player* bot)
 {
     //should never sell for less than sell to vendor price
@@ -1771,9 +1863,7 @@ uint32 ItemUsageValue::GetBotSellPrice(ItemPrototype const* proto, Player* bot)
 
 uint32 ItemUsageValue::GetBotAHSellMinPrice(ItemPrototype const* proto)
 {
-    //should never sell for less than base value
-    // multiplied by % to give room for those who buy from vendor and sell to AH
-    return static_cast<uint32>((GetItemBaseValue(proto) + 1) * 2.00f);
+    return static_cast<uint32>(GetItemBaseValue(proto) * 2.00f);
 }
 
 uint32 ItemUsageValue::GetBotAHSellMaxPrice(ItemPrototype const* proto)
@@ -1786,4 +1876,57 @@ uint32 ItemUsageValue::GetCraftingFee(ItemPrototype const* proto)
     uint32 fixedMinCraftingFee = 100;
     uint32 level = std::max(proto->ItemLevel, proto->RequiredLevel);
     return fixedMinCraftingFee * level * level / 40;
+}
+
+uint32 ItemUsageValue::DesiredPricePerItem(Player* bot, const ItemPrototype* proto, uint32 count, uint32 priceModifier)
+{
+    AuctionEntry lowestPrice;
+
+    lowestPrice.Id = 0;
+
+    std::vector<AuctionEntry> auctions;
+
+    for (auto& auction : sRandomPlayerbotMgr.GetAhPrices(proto->ItemId))
+    {
+        float pricePerItem = float(auction.buyout) / float(auction.itemCount);
+
+        if (auction.itemCount != count)
+            continue;
+
+        if (lowestPrice.Id == 0 || pricePerItem < float(lowestPrice.buyout) / float(lowestPrice.itemCount))
+            lowestPrice = auction;
+    }
+
+    uint32 lowestBuyoutItemPricePerItem = float(lowestPrice.buyout) / float(lowestPrice.itemCount);
+
+    uint32 maxAhPrice = GetBotAHSellMaxPrice(proto);
+    uint32 minAhPrice = GetBotAHSellMinPrice(proto);
+
+    if (!maxAhPrice)
+    {
+        minAhPrice = lowestBuyoutItemPricePerItem;
+        maxAhPrice = GetAHMedianBuyoutPricePerItem(proto) * 1.5f;
+        if (!maxAhPrice)
+            maxAhPrice = minAhPrice * 1.5f;
+    }
+
+    uint32 desiredPricePerItem = minAhPrice + static_cast<uint32>((maxAhPrice - minAhPrice) * priceModifier / 100);
+
+    if (lowestBuyoutItemPricePerItem > 0 && lowestPrice.owner != bot->GetDbGuid())
+    {
+        uint32 undercutByMoney = std::max(static_cast<uint32>(1), static_cast<uint32>(lowestBuyoutItemPricePerItem * frand(0.0f, 0.1f)));
+
+        if (undercutByMoney < lowestBuyoutItemPricePerItem)
+        {
+            desiredPricePerItem = lowestBuyoutItemPricePerItem - undercutByMoney;
+        }
+        else
+        {
+            desiredPricePerItem = lowestBuyoutItemPricePerItem - 1;
+        }
+    }
+
+    desiredPricePerItem = std::max(minAhPrice, desiredPricePerItem);
+
+    return desiredPricePerItem;
 }

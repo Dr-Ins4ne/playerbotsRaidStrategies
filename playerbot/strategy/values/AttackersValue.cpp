@@ -38,7 +38,7 @@ std::list<ObjectGuid> AttackersValue::Calculate()
         return result;
     }
 
-    if (!sPlayerbotAIConfig.tweakValue)
+    if (sPlayerbotAIConfig.shareTargets)
     {
         // Try to get the value from nearby friendly bots.
         std::list<ObjectGuid> nearGuids = ai->GetAiObjectContext()->GetValue<std::list<ObjectGuid> >("nearest friendly players")->Get();
@@ -52,7 +52,7 @@ std::list<ObjectGuid> AttackersValue::Calculate()
             if (player == bot)
                 continue;
 
-            if (player->GetMapId() != bot->GetMapId())
+            if (!ai->IsSafe(player))
                 continue;
 
             if (sServerFacade.GetDistance2d(bot, player) > 10.0f)
@@ -273,6 +273,9 @@ void AttackersValue::AddTargetsOf(Player* player, std::set<Unit*>& targets, std:
         // Filter the units that are valid
         for (Unit* unit : units)
         {
+            if (!ai->IsSafe(unit))
+                continue;
+
             // Prevent checking a target that has already been validated
             if((targets.find(unit) == targets.end()))
             {
@@ -424,7 +427,9 @@ bool AttackersValue::IgnoreTarget(Unit* target, Player* playerToCheckAgainst)
             return true;
 
         //When moving to master far away.
-        if (ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) && AI_VALUE2(bool, "trigger active", "out of react range"))
+        if ((ai->HasStrategy("follow", BotState::BOT_STATE_NON_COMBAT) ||
+            ai->HasStrategy("wander", BotState::BOT_STATE_NON_COMBAT)) &&
+            AI_VALUE2(bool, "trigger active", "out of react range"))
             return true;
 
         if (ai->GetMaster() && !ai->HasActivePlayerMaster())
@@ -457,13 +462,20 @@ bool AttackersValue::IgnoreTarget(Unit* target, Player* playerToCheckAgainst)
 #define TRAINING_DUMMY_NPC_ENTRY3 190015
 #define THERAMORE_COMBAT_DUMMY 4952
 #define NAXXRAMAS_COMBAT_DUMMY 16211
+#ifdef MANGOSBOT_TWO  
+#define INITATES_TRAINING_DUMMY 32541
+#endif
 
-        if (entry == TRAINING_DUMMY_NPC_ENTRY1 ||
-            entry == TRAINING_DUMMY_NPC_ENTRY2 ||
-            entry == TRAINING_DUMMY_NPC_ENTRY3 ||
-            entry == THERAMORE_COMBAT_DUMMY ||
-            entry == NAXXRAMAS_COMBAT_DUMMY)
+        switch (entry)
         {
+        case TRAINING_DUMMY_NPC_ENTRY1:
+        case TRAINING_DUMMY_NPC_ENTRY2:
+        case TRAINING_DUMMY_NPC_ENTRY3:
+        case THERAMORE_COMBAT_DUMMY:
+        case NAXXRAMAS_COMBAT_DUMMY:
+#ifdef MANGOSBOT_TWO     
+        case INITATES_TRAINING_DUMMY:
+#endif
             isDummy = true;
         }
 
@@ -491,7 +503,7 @@ std::string AttackersValue::Format()
             out << target;      
     }
 
-    return out.str().c_str();
+    return out.str();
 }
 
 std::list<ObjectGuid> AttackersTargetingMeValue::Calculate()

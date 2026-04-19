@@ -14,7 +14,7 @@ namespace ai
         DistanceValue(PlayerbotAI* ai, std::string name = "distance") : FloatCalculatedValue(ai, name), Qualified() {}
 
     public:
-        float Calculate()
+        float Calculate() override
         {
             if (qualifier == "loot target")
             {
@@ -42,7 +42,21 @@ namespace ai
             if (qualifier == "rpg target")
             {
                 GuidPosition rpgTarget = AI_VALUE(GuidPosition, qualifier);
+                if (!rpgTarget)
+                    return FLT_MAX;
+
+                WorldPosition oldLocation = rpgTarget;
+
+                float distance = oldLocation.distance(bot);
+
+                if (oldLocation.getMapId() != bot->GetMapId() || distance > sPlayerbotAIConfig.reactDistance)
+                    return distance;
+
                 rpgTarget.updatePosition(bot->GetInstanceId());
+
+                if (oldLocation != rpgTarget)
+                    SET_AI_VALUE(GuidPosition, "rpg target", rpgTarget);
+
                 return rpgTarget.distance(bot);
             }
             else if (qualifier == "travel target")
@@ -96,7 +110,7 @@ namespace ai
         InsideTargetValue(PlayerbotAI* ai, std::string name = "inside target") : BoolCalculatedValue(ai, name), Qualified() {}
 
     public:
-        bool Calculate()
+        bool Calculate() override
         {
             Unit* target = AI_VALUE(Unit*, qualifier);
 

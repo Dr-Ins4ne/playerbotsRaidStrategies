@@ -8,6 +8,7 @@ namespace ai
     public:
         RtiAction(PlayerbotAI* ai) : ChatCommandAction(ai, "rti") {}
         virtual bool Execute(Event& event) override;
+        virtual bool isUsefulWhenStunned() override { return true; }
 
     private:
         void AppendRti(std::ostringstream & out, std::string type);
@@ -17,6 +18,7 @@ namespace ai
     {
     public:
         MarkRtiAction(PlayerbotAI* ai) : Action(ai, "mark rti") {}
-        virtual bool Execute(Event& event);
+        virtual bool Execute(Event& event) override;
+        virtual bool isUsefulWhenStunned() override { return true; }
     };
 }

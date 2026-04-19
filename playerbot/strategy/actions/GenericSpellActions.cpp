@@ -186,9 +186,9 @@ NextAction** CastSpellAction::getPrerequisites()
     return Action::getPrerequisites();
 }
 
-void CastSpellAction::SetSpellName(const std::string& name, std::string spellIDContextName /*= "spell id"*/)
+void CastSpellAction::SetSpellName(const std::string& name, std::string spellIDContextName /*= "spell id"*/, bool force)
 {
-    if (spellName != name)
+    if (force || spellName != name)
     {
         spellName = name;
         spellId = ai->GetAiObjectContext()->GetValue<uint32>(spellIDContextName, name)->Get();
@@ -291,7 +291,33 @@ bool CastVehicleSpellAction::isUseful()
 
 bool CastVehicleSpellAction::Execute(Event& event)
 {
-    return ai->CastVehicleSpell(GetSpellID(), GetTarget());
+    return ai->CastVehicleSpell(GetSpellID(), GetTarget(), speed, needTurn);
+}
+
+bool CastFrozenDeathboltAction::isPossible()
+{
+    Unit* target = GetTarget();
+
+    if (!target)
+        return false;
+
+    if (target->GetDistance(bot) > range)
+        return false;
+
+    return CastVehicleSpellAction::isPossible();
+}
+
+bool CastDevourHumanoidAction::isPossible()
+{
+    Unit* target = GetTarget();
+
+    if (!target)
+        return false;
+
+    if (target->GetDistance(bot) > range)
+        return false;
+
+    return CastVehicleSpellAction::isPossible();
 }
 
 bool CastShootAction::isPossible()
@@ -680,8 +706,14 @@ bool CastItemTargetAction::Execute(Event& event)
         if (!result)
             return false;
 
-        bot->RemoveSpellCooldown(*spellInfo, false);
-        bot->AddCooldown(*spellInfo, proto, false);
+        if (ai->HasCheat(BotCheatMask::item))
+        {
+            if (!HasSpellCooldown(itemId))
+            {
+                bot->RemoveSpellCooldown(*spellInfo, false);
+                bot->AddCooldown(*spellInfo, proto, false);
+            }
+        }
 
         ++count;
     }

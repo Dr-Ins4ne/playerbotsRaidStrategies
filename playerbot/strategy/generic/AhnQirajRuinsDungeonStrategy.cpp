@@ -1,8 +1,8 @@
 #include "playerbot/playerbot.h"
-#include "AhnQirajRuinsDungeonStrategies.h"
+#include "AhnQirajRuinsDungeonStrategy.h"
 #include "DungeonMultipliers.h" // For generic raid multipliers
-#include "DungeonTriggers.h"   // For StartBossFightTrigger, EndBossFightTrigger
-#include "ChangeStrategyAction.h" // For ChangeAllStrategyAction
+#include "../triggers/DungeonTriggers.h"   // For StartBossFightTrigger, EndBossFightTrigger
+#include "../actions/ChangeStrategyAction.h" // For ChangeAllStrategyAction
 
 // Note: In "old style", you'd typically manually add entries.
 // For this example, I'll still use the concepts of the custom triggers/actions.

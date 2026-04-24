@@ -1,80 +1,63 @@
-// AhnQirajDungeonActions.h
 #pragma once
-#include "DungeonActions.h"      // For MoveAwayFromHazard (generic dungeon action type)
-#include "CureAction.h"          // For CurePartyMemberAction
-#include "TargetAction.h"        // For Taunt/Tank related actions
 
+#include "DungeonActions.h"          
+#include "GenericSpellActions.h"     
+#include "MovementActions.h"
 
 namespace ai
 {
-    // Action to move away from Kurinnaxx's Sand Trap
+    // 1. Move away from Kurinnaxx's Sand Trap
+    // In your branch, MoveAwayFromHazard is generic. 
+    // It will automatically move away from 180630 if it's in the HazardsValue list.
     class MoveAwayFromKurinaxxSandTrapAction : public MoveAwayFromHazard
     {
     public:
-        MoveAwayFromKurinaxxSandTrapAction(PlayerbotAI* ai) : MoveAwayFromHazard(ai, "move away from kurinnaxx sand trap", 180630) {}
+        MoveAwayFromKurinaxxSandTrapAction(PlayerbotAI* ai) : MoveAwayFromHazard(ai, "move away from kurinnaxx sand trap") {}
     };
 
-    // Action to cure the Toxic Volley poison
+    // 2. Cure the Toxic Volley poison
     class CureKurinaxxToxicVolleyAction : public CurePartyMemberAction
     {
     public:
-        // Targets party members who have the Toxic Volley aura (Spell ID 26056).
-        // Assumes the bot has a poison dispel spell.
-        CureKurinaxxToxicVolleyAction(PlayerbotAI* ai) : CurePartyMemberAction(ai, "cure toxic volley poison", DISPEL_POISON) {
-            qualifier = "party member has aura::26056"; // Explicitly target players with this aura
-        }
+        CureKurinaxxToxicVolleyAction(PlayerbotAI* ai) : CurePartyMemberAction(ai, "cure toxic volley poison", DISPEL_POISON) {}
+        
+        // This matches the syntax found in your CurePartyMemberAction block
+        virtual std::string GetTargetName() override { return "party member has aura"; }
+        virtual std::string GetTargetQualifier() override { return "26056"; }
     };
 
-    // Action to signal a tank to taunt/swap on Kurinnaxx
-    // This action would typically be used by an off-tank bot to taunt.
-    // The actual taunt spell would be class-specific (e.g., Warriors: Taunt, Druids: Growl).
-    // The 'qualifier' here ensures it targets Kurinnaxx specifically.
-    class TauntKurinaxxAction : public TauntAction
+    // 3. Taunt Kurinnaxx
+    class TauntKurinaxxAction : public CastSpellAction
     {
     public:
-        TauntKurinaxxAction(PlayerbotAI* ai) : TauntAction(ai, "taunt kurinnaxx") {
-            // Only taunt if the target is Kurinnaxx (ID 15339)
-            qualifier = "creature id::15339";
-        }
+        TauntKurinaxxAction(PlayerbotAI* ai) : CastSpellAction(ai, "taunt") {}
+        
+        virtual std::string GetTargetName() override { return "creature id"; }
+        virtual std::string GetTargetQualifier() override { return "15339"; }
     };
 
-    // Action for the current tank to retreat/stop tanking for a swap
-    // This is a generic 'flee' or 'move out' action triggered when Mortal Wound stacks are high.
-    class KurinaxxTankRetreatAction : public FleeAction // Or MoveAwayFromCreature if specific distance is needed
+    // 4. Tank Retreat
+    // CHANGED: Using MoveAwayFromCreature because FleeAction doesn't support IDs in your branch.
+    // Syntax: ai, name, creatureID, range
+    class KurinaxxTankRetreatAction : public MoveAwayFromCreature
     {
     public:
-        KurinaxxTankRetreatAction(PlayerbotAI* ai) : FleeAction(ai, "kurinnaxx tank retreat") {
-            // Flee from Kurinnaxx
-            qualifier = "creature id::15339";
-        }
+        KurinaxxTankRetreatAction(PlayerbotAI* ai) : MoveAwayFromCreature(ai, "kurinnaxx tank retreat", 15339, 30.0f) {}
     };
 
-    class AhnQirajActionContext : public NamedObjectContext<Action>
+    // The Context Class
+    class AhnQirajRuinsActionContext : public NamedObjectContext<Action>
     {
     public:
-        AhnQirajActionContext()
+        AhnQirajRuinsActionContext()
         {
-            // General Ahn'Qiraj Dungeon Strategy actions
-            creators["enable ahn'qiraj strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "enable ahn'qiraj strategy", "+ahn'qiraj");};
-            creators["disable ahn'qiraj strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "disable ahn'qiraj strategy", "-ahn'qiraj");};
-
-            // Kurinnaxx Fight Strategy actions
-            creators["enable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable kurinnaxx strategy", "+kurinnaxx");};
-            creators["disable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable kurinnaxx strategy", "-kurinnaxx");};
-
-            // Specific Kurinnaxx Encounter actions
-            creators["move away from kurinnaxx sand trap"] = &AhnQirajActionContext::move_away_from_kurinnaxx_sand_trap;
-            creators["cure toxic volley poison"] = &AhnQirajActionContext::cure_toxic_volley_poison;
-            creators["taunt kurinnaxx"] = &AhnQirajActionContext::taunt_kurinnaxx;
-            creators["kurinnaxx tank retreat"] = &AhnQirajActionContext::kurinnaxx_tank_retreat;
-
-            // Add other AQ20 boss strategy actions here as you implement them, e.g.:
-            // creators["enable rajaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable rajaxx strategy", "+rajaxx");};
-            // creators["disable rajaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable rajaxx strategy", "-rajaxx");};
+            creators["move away from kurinnaxx sand trap"] = &AhnQirajRuinsActionContext::move_away_from_kurinnaxx_sand_trap;
+            creators["cure toxic volley poison"] = &AhnQirajRuinsActionContext::cure_toxic_volley_poison;
+            creators["taunt kurinnaxx"] = &AhnQirajRuinsActionContext::taunt_kurinnaxx;
+            creators["kurinnaxx tank retreat"] = &AhnQirajRuinsActionContext::kurinnaxx_tank_retreat;
         }
 
-        private:
-        // Private static helper functions for creating Kurinnaxx-specific actions
+    private:
         static Action* move_away_from_kurinnaxx_sand_trap(PlayerbotAI* ai) { return new MoveAwayFromKurinaxxSandTrapAction(ai); }
         static Action* cure_toxic_volley_poison(PlayerbotAI* ai) { return new CureKurinaxxToxicVolleyAction(ai); }
         static Action* taunt_kurinnaxx(PlayerbotAI* ai) { return new TauntKurinaxxAction(ai); }

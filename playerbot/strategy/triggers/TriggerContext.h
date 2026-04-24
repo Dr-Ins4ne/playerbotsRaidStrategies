@@ -290,8 +290,7 @@ namespace ai
             // Dungeon Triggers
             creators["enter onyxia's lair"] = [](PlayerbotAI* ai) { return new OnyxiasLairEnterDungeonTrigger(ai); };
             creators["leave onyxia's lair"] = [](PlayerbotAI* ai) { return new OnyxiasLairLeaveDungeonTrigger(ai); };
-            creators["enter molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreEnterDungeonTrigger(ai); };
-            creators["leave molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreLeaveDungeonTrigger(ai); };
+
             creators["enter karazhan"] = [](PlayerbotAI* ai) { return new KarazhanEnterDungeonTrigger(ai); };
             creators["leave karazhan"] = [](PlayerbotAI* ai) { return new KarazhanLeaveDungeonTrigger(ai); };
             creators["enter naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasEnterDungeonTrigger(ai); };
@@ -303,12 +302,6 @@ namespace ai
             creators["start onyxia fight"] = [](PlayerbotAI* ai) { return new OnyxiaStartFightTrigger(ai); };
             creators["end onyxia fight"] = [](PlayerbotAI* ai) { return new OnyxiaEndFightTrigger(ai); };
 
-            creators["start magmadar fight"] = [](PlayerbotAI* ai) { return new MagmadarStartFightTrigger(ai); };
-            creators["end magmadar fight"] = [](PlayerbotAI* ai) { return new MagmadarEndFightTrigger(ai); };
-            creators["magmadar lava bomb"] = [](PlayerbotAI* ai) { return new MagmadarLavaBombTrigger(ai); };
-            creators["magmadar too close"] = [](PlayerbotAI* ai) { return new MagmadarTooCloseTrigger(ai); };
-
-            creators["fire protection potion ready"] = [](PlayerbotAI* ai) { return new FireProtectionPotionReadyTrigger(ai); };
 
             creators["mc rune in sight"] = [](PlayerbotAI* ai) { return new MCRuneInSightTrigger(ai); };
             creators["mc rune close"] = [](PlayerbotAI* ai) { return new MCRuneCloseTrigger(ai); };

@@ -9,11 +9,7 @@ using namespace ai;
 
 void CircleFormationStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-  
-    
     Player* bot = ai->GetBot();
-    //PlayerbotAI* ai = bot->GetPlayerbotAI();
-
     std::string role = GetBotRole(bot); 
     float radius = GetRadiusForRole(role);
 
@@ -29,43 +25,44 @@ void CircleFormationStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     
     if (totalBotsInGroup > 0 && botIndexInGroup != -1)
     {
-        float angleIncrement = (totalBotsInGroup > 0) ? (360.0f / totalBotsInGroup) : 0.0f;
+        // 1. Calculate the basic slice of the circle
+        float angleIncrement = 360.0f / totalBotsInGroup;
         angleDegrees = botIndexInGroup * angleIncrement;
 
-        // Optional: Offset angles based on current target's orientation
-        Unit* currentTarget = ai->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();  // Target bot will form around
-        if (currentTarget) {
-            float targetOrientationDegrees = currentTarget->GetOrientation() * (180.0f / M_PI_F);
-            angleDegrees = fmod(targetOrientationDegrees + angleDegrees, 360.0f);
-            if (angleDegrees < 0) angleDegrees += 360.0f; // Ensure positive angle
+        // 2. LOCK TO MASTER/LEADER INSTEAD OF TARGET
+        // By using the Master's orientation at the moment the strategy is initialized,
+        // the "North" of your circle is always relative to where the leader was looking.
+        Player* master = ai->GetMaster();
+        if (master)
+        {
+            float masterOrient = master->GetOrientation() * (180.0f / M_PI_F);
+            angleDegrees = fmod(masterOrient + angleDegrees, 360.0f);
         }
-
     }
     else 
     {
-        angleDegrees = (bot->GetObjectGuid().GetCounter() % 24) * 15.0f;
-        // ai->TellPlayerNoFacing(GetMaster(), "Warning: Bot " + bot->GetName() + " cound not determine group index, using default angle " + std::to_string(angleDegrees));
+        angleDegrees = (bot->GetObjectGuid().GetCounter() % 24) * 5.0f;
     }
 
+    // Wrap the degrees to ensure 0-360
+    if (angleDegrees < 0) angleDegrees += 360.0f;
+
     std::ostringstream qualifierStream;
-    qualifierStream.precision(1); // For one decimal place for float
+    qualifierStream.precision(1);
     qualifierStream << std::fixed << radius << "," << angleDegrees;
     std::string actionQualifier = qualifierStream.str();
-    
-    // For debugging the generated qualifier:
-    // if (GetMaster()) ai->TellPlayerNoFacing(GetMaster(), "CircleFormationStrategy: Bot " + bot->GetName() + " (Role: " + role + ") using qualifier: \"" + actionQualifier + "\" for move to circle formation");
 
-
+    // Trigger registration remains the same, 
+    // but actionQualifier is now "baked" with a static angle.
     triggers.push_back(new TriggerNode(
         "combat start", 
         NextAction::array(0, new NextAction("move to circle formation::" + actionQualifier, ACTION_EMERGENCY+10), NULL))); 
     
-        triggers.push_back(new TriggerNode(
+    triggers.push_back(new TriggerNode(
         "often", 
         NextAction::array(0, 
-                            new NextAction("say::often circle formation", ACTION_EMERGENCY), 
-                            new NextAction("move to circle formation::" + actionQualifier, ACTION_EMERGENCY+10), // Ensure this action has high priority
-                            NULL))); 
+            new NextAction("move to circle formation::" + actionQualifier, ACTION_EMERGENCY+10), 
+            NULL))); 
 }
 
 

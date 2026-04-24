@@ -1,5 +1,5 @@
 #include "playerbot/playerbot.h"
-#include "AhnQirajRuinsDungeonStrategy.h"
+#include "AhnQirajRuinsDungeonStrategies.h"
 #include "DungeonMultipliers.h" // For generic raid multipliers
 #include "../triggers/DungeonTriggers.h"   // For StartBossFightTrigger, EndBossFightTrigger
 #include "../actions/ChangeStrategyAction.h" // For ChangeAllStrategyAction

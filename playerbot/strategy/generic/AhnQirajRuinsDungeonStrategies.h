@@ -6,10 +6,10 @@
 namespace ai
 {
     // General Ahn'Qiraj (AQ20) Dungeon Strategy
-    class AhnQirajDungeonStrategy : public Strategy
+    class AhnQirajRuinsDungeonStrategy : public Strategy
     {
     public:
-        AhnQirajDungeonStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        AhnQirajRuinsDungeonStrategy(PlayerbotAI* ai) : Strategy(ai) {}
         std::string getName() override { return "ahn'qiraj"; }
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;

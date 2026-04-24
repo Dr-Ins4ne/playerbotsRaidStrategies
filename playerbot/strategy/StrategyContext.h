@@ -51,6 +51,7 @@
 #include "generic/DungeonStrategy.h"
 #include "generic/OnyxiasLairDungeonStrategies.h"
 #include "generic/MoltenCoreDungeonStrategies.h"
+#include "generic/AhnQirajRuinsDungeonStrategies.h"
 #include "generic/BlackwingLairDungeonStrategies.h"
 #include "generic/KarazhanDungeonStrategies.h"
 #include "generic/NaxxramasDungeonStrategies.h"
@@ -166,6 +167,7 @@ namespace ai
             creators["onyxia's lair"] = [](PlayerbotAI* ai) { return new OnyxiasLairDungeonStrategy(ai); };
             creators["molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreDungeonStrategy(ai); };
             creators["blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairDungeonStrategy(ai); };
+            creators["ahn'qiraj"] = [](PlayerbotAI* ai) { return new AhnQirajRuinsDungeonStrategy(ai); };
             creators["karazhan"] = [](PlayerbotAI* ai) { return new KarazhanDungeonStrategy(ai); };
             creators["naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasDungeonStrategy(ai); };
 
@@ -186,6 +188,8 @@ namespace ai
             creators["sulfuron harbinger"] = [](PlayerbotAI* ai){ return new SulfuronHarbingerFightStrategy(ai); };
             creators["golemagg"] = [](PlayerbotAI* ai){ return new GolemaggFightStrategy(ai); };
             creators["ragnaros"] = [](PlayerbotAI* ai){ return new RagnarosFightStrategy(ai); };
+
+            creators["kurinaxx"] = [](PlayerbotAI* ai){ return new KurinnaxxFightStrategy(ai); };
 
         
         }

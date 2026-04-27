@@ -12,7 +12,7 @@ namespace ai
         KurinaxxSandTrapTrigger(PlayerbotAI* ai) : CloseToGameObjectHazardTrigger(ai, "kurinnaxx sand trap close", 180630, 8.0f, 60) {}
     };
 
-    // 2. Trigger for Kurinnaxx's Toxic Volley
+    /*
     class KurinaxxToxicVolleyTrigger : public HasAuraTrigger
     {
     public:
@@ -22,7 +22,7 @@ namespace ai
         // We set the spell name/ID via qualifier logic or manual override
         virtual std::string getName() override { return "26056"; }
         virtual std::string GetTargetName() override { return "party member to dispel"; }
-    };
+    };*/
 
     // 3. Trigger for Kurinnaxx's Mortal Wound (Tank Swap)
     class KurinaxxMortalWoundTrigger : public HasAuraTrigger
@@ -52,13 +52,17 @@ namespace ai
         AhnQirajRuinsTriggerContext()
         {
             creators["kurinnaxx sand trap close"] = &AhnQirajRuinsTriggerContext::kurinnaxx_sand_trap_close;
-            creators["toxic volley poison aura"] = &AhnQirajRuinsTriggerContext::toxic_volley_poison_aura;
+            //creators["toxic volley poison aura"] = &AhnQirajRuinsTriggerContext::toxic_volley_poison_aura;
             creators["kurinnaxx mortal wound high"] = &AhnQirajRuinsTriggerContext::kurinnaxx_mortal_wound_high;
+
+            creators["enter aq20"] = [](PlayerbotAI* ai){ return new EnterDungeonTrigger(ai, "enter aq20", "ahnqiraj ruins", 509);};
+            creators["leave aq20"] = [](PlayerbotAI* ai){ return new LeaveDungeonTrigger(ai, "leave aq20", "ahnqiraj ruins", 509);};
+
         }
 
     private:
         static Trigger* kurinnaxx_sand_trap_close(PlayerbotAI* ai) { return new KurinaxxSandTrapTrigger(ai); }
-        static Trigger* toxic_volley_poison_aura(PlayerbotAI* ai) { return new KurinaxxToxicVolleyTrigger(ai); }
+        //static Trigger* toxic_volley_poison_aura(PlayerbotAI* ai) { return new KurinaxxToxicVolleyTrigger(ai); }
         static Trigger* kurinnaxx_mortal_wound_high(PlayerbotAI* ai) { return new KurinaxxMortalWoundTrigger(ai); }
     };
 }

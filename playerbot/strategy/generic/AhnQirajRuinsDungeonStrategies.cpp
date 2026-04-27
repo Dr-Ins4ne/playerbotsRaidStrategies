@@ -11,7 +11,7 @@ using namespace ai;
 
 // --- AhnQirajDungeonStrategy Implementation ---
 
-void AhnQirajDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+void AhnQirajRuinsDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     // Start Kurinnaxx fight strategy
     triggers.push_back(new TriggerNode(
@@ -21,13 +21,13 @@ void AhnQirajDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     // (Add triggers for other AQ20 bosses here if/when you implement them)
 }
 
-void AhnQirajDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+void AhnQirajRuinsDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     // No specific general AQ20 non-combat triggers for the overall dungeon strategy currently
     // (e.g., if there were specific raid-wide mechanics outside of boss fights)
 }
 
-void AhnQirajDungeonStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
+void AhnQirajRuinsDungeonStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 {
     // No specific general AQ20 dead triggers for the overall dungeon strategy currently
 }
@@ -36,12 +36,12 @@ void AhnQirajDungeonStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers
 // --- KurinnaxxFightStrategy Implementation ---
 
 void KurinnaxxFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
-{
-    // Trigger to cure Toxic Volley poison
+{/*
+    // actually there is no toxic volley
     triggers.push_back(new TriggerNode(
         "toxic volley poison aura",
         NextAction::array(0, new NextAction("cure toxic volley poison", 90.0f), NULL))); // High priority
-
+*/
     // Trigger for tank swap due to Mortal Wound stacks
     triggers.push_back(new TriggerNode(
         "kurinnaxx mortal wound high", // Trigger if current tank has high Mortal Wound stacks
@@ -50,10 +50,6 @@ void KurinnaxxFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
             new NextAction("kurinnaxx tank retreat", 90.0f), // Current tank should retreat
             NULL)));
 
-    // Trigger to avoid Sand Trap during combat
-    triggers.push_back(new TriggerNode(
-        "kurinnaxx sand trap close", // Using the general "close" trigger
-        NextAction::array(0, new NextAction("move away from kurinnaxx sand trap", 100.0f), NULL))); // High priority
 }
 
 void KurinnaxxFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

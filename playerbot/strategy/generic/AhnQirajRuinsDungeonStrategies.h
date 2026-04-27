@@ -10,7 +10,7 @@ namespace ai
     {
     public:
         AhnQirajRuinsDungeonStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "ahn'qiraj"; }
+        std::string getName() override { return "ahnqiraj ruins"; }
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitDeadTriggers(std::list<TriggerNode*>& triggers) override;

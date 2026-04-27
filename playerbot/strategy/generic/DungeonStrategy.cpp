@@ -8,8 +8,8 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     // Add this combat triggers in case the bot gets summoned into the dungeon and goes straight into combat
     triggers.push_back(new TriggerNode(
-        "enter onyxia's lair",
-        NextAction::array(0, new NextAction("enable onyxia's lair strategy", 100.0f), NULL)));
+        "enter onyxia lair",
+        NextAction::array(0, new NextAction("enable onyxia lair strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
         "enter molten core",
@@ -22,17 +22,25 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "enter karazhan",
         NextAction::array(0, new NextAction("enable karazhan strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "enter zul gurub",
+        NextAction::array(0, new NextAction("enable zul gurub strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "enter aq20",
+        NextAction::array(0, new NextAction("enable ahnqiraj ruins strategy", 100.0f), NULL)));
 }
 
 void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "enter onyxia's lair",
-        NextAction::array(0, new NextAction("enable onyxia's lair strategy", 100.0f), NULL)));
+        "enter onyxia lair",
+        NextAction::array(0, new NextAction("enable onyxia lair strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "leave onyxia's lair",
-        NextAction::array(0, new NextAction("disable onyxia's lair strategy", 100.0f), NULL)));
+        "leave onyxia lair",
+        NextAction::array(0, new NextAction("disable onyxia lair strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
         "enter molten core",
@@ -57,4 +65,20 @@ void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "leave karazhan",
         NextAction::array(0, new NextAction("disable karazhan strategy", 100.0f), NULL)));
+    
+    triggers.push_back(new TriggerNode(
+        "enter zul gurub",
+        NextAction::array(0, new NextAction("enable zul gurub strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "leave zul gurub",
+        NextAction::array(0, new NextAction("disable zul gurub strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "enter aq20",
+        NextAction::array(0, new NextAction("enable ahnqiraj ruins strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "leave aq20",
+        NextAction::array(0, new NextAction("disable ahnqiraj ruins strategy", 100.0f), NULL)));
 }

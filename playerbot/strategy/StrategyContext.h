@@ -164,15 +164,15 @@ namespace ai
 
             // Dungeon Strategies
             creators["dungeon"] = [](PlayerbotAI* ai) { return new DungeonStrategy(ai); };
-            creators["onyxia's lair"] = [](PlayerbotAI* ai) { return new OnyxiasLairDungeonStrategy(ai); };
+            creators["onyxia lair"] = [](PlayerbotAI* ai) { return new OnyxiasLairDungeonStrategy(ai); };
             creators["molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreDungeonStrategy(ai); };
             creators["blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairDungeonStrategy(ai); };
-            creators["ahn'qiraj"] = [](PlayerbotAI* ai) { return new AhnQirajRuinsDungeonStrategy(ai); };
+            creators["ahnqiraj ruins"] = [](PlayerbotAI* ai) { return new AhnQirajRuinsDungeonStrategy(ai); };
             creators["karazhan"] = [](PlayerbotAI* ai) { return new KarazhanDungeonStrategy(ai); };
             creators["naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasDungeonStrategy(ai); };
 
             // Dungeon Boss Strategies
-            creators["onyxia"] = [](PlayerbotAI* ai) { return new OnyxiaFightStrategy(ai); };
+
             creators["suppression room"] = [](PlayerbotAI* ai) { return new SuppressionRoomStrategy(ai); };
             creators["netherspite"] = [](PlayerbotAI* ai) { return new NetherspiteFightStrategy(ai); };
             creators["prince malchezaar"] = [](PlayerbotAI* ai) { return new PrinceMalchezaarFightStrategy(ai); };

@@ -15,7 +15,7 @@ namespace ai
         MoveAwayFromKurinaxxSandTrapAction(PlayerbotAI* ai) : MoveAwayFromHazard(ai, "move away from kurinnaxx sand trap") {}
     };
 
-    // 2. Cure the Toxic Volley poison
+    /*
     class CureKurinaxxToxicVolleyAction : public CurePartyMemberAction
     {
     public:
@@ -24,7 +24,7 @@ namespace ai
         // This matches the syntax found in your CurePartyMemberAction block
         virtual std::string GetTargetName() override { return "party member has aura"; }
         virtual std::string GetTargetQualifier() override { return "26056"; }
-    };
+    };*/
 
     // 3. Taunt Kurinnaxx
     class TauntKurinaxxAction : public CastSpellAction

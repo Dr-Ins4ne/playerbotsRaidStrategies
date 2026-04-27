@@ -15,16 +15,7 @@ namespace ai
         MoveAwayFromKurinaxxSandTrapAction(PlayerbotAI* ai) : MoveAwayFromHazard(ai, "move away from kurinnaxx sand trap") {}
     };
 
-    /*
-    class CureKurinaxxToxicVolleyAction : public CurePartyMemberAction
-    {
-    public:
-        CureKurinaxxToxicVolleyAction(PlayerbotAI* ai) : CurePartyMemberAction(ai, "cure toxic volley poison", DISPEL_POISON) {}
-        
-        // This matches the syntax found in your CurePartyMemberAction block
-        virtual std::string GetTargetName() override { return "party member has aura"; }
-        virtual std::string GetTargetQualifier() override { return "26056"; }
-    };*/
+
 
     // 3. Taunt Kurinnaxx
     class TauntKurinaxxAction : public CastSpellAction
@@ -52,14 +43,12 @@ namespace ai
         AhnQirajRuinsActionContext()
         {
             creators["move away from kurinnaxx sand trap"] = &AhnQirajRuinsActionContext::move_away_from_kurinnaxx_sand_trap;
-            creators["cure toxic volley poison"] = &AhnQirajRuinsActionContext::cure_toxic_volley_poison;
             creators["taunt kurinnaxx"] = &AhnQirajRuinsActionContext::taunt_kurinnaxx;
             creators["kurinnaxx tank retreat"] = &AhnQirajRuinsActionContext::kurinnaxx_tank_retreat;
         }
 
     private:
         static Action* move_away_from_kurinnaxx_sand_trap(PlayerbotAI* ai) { return new MoveAwayFromKurinaxxSandTrapAction(ai); }
-        static Action* cure_toxic_volley_poison(PlayerbotAI* ai) { return new CureKurinaxxToxicVolleyAction(ai); }
         static Action* taunt_kurinnaxx(PlayerbotAI* ai) { return new TauntKurinaxxAction(ai); }
         static Action* kurinnaxx_tank_retreat(PlayerbotAI* ai) { return new KurinaxxTankRetreatAction(ai); }
     };

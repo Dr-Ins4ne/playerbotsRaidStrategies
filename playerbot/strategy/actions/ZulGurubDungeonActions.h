@@ -138,7 +138,7 @@ namespace ai
         TargetThekalTigerAction(PlayerbotAI* ai)
             : ThekalActionBase(ai, "target thekal tiger") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             return SetCurrentTarget(FindAliveCreature(NPC_TIGER));
         }
@@ -151,7 +151,7 @@ namespace ai
         InterruptLorkhanAction(PlayerbotAI* ai)
             : ThekalActionBase(ai, "interrupt lorkhan") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             if (!lorkhan)
@@ -191,7 +191,7 @@ namespace ai
         CurseOfTonguesLorkhanAction(PlayerbotAI* ai)
             : ThekalActionBase(ai, "curse of tongues lorkhan") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             if (!lorkhan)
@@ -209,7 +209,7 @@ namespace ai
         BalanceThekalTrioAction(PlayerbotAI* ai)
             : ThekalActionBase(ai, "balance thekal trio") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             Unit* thekal  = FindAliveCreature(NPC_THEKAL);
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
@@ -262,7 +262,7 @@ namespace ai
         FinishThekalTrioAction(PlayerbotAI* ai)
             : ThekalActionBase(ai, "finish thekal trio") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             Unit* zath    = FindAliveCreature(NPC_ZATH);
@@ -313,9 +313,9 @@ namespace ai
             // High Priest Thekal (Tiger)
             creators["enable thekal fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable thekal fight strategy", "+thekal");};
             creators["disable thekal fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable thekal fight strategy", "-thekal");};
-            creators["attack thekal tiger"] = [](PlayerbotAI* ai){return new AttackCreatureAction(ai, "attack thekal tiger", NPC_ZULIAN_TIGER);};
-            creators["interrupt lorkhan"] = [](PlayerbotAI* ai){return new InterruptCreatureAction(ai, "interrupt lorkhan", NPC_ZEALOT_LORKHAN);};
-            creators["curse of tongues lorkhan"] = [](PlayerbotAI* ai){return new CastSpellOnCreatureAction(ai, "curse of tongues lorkhan", "curse of tongues", NPC_ZEALOT_LORKHAN);};
+            creators["attack thekal tiger"] = [](PlayerbotAI* ai){return new TargetThekalTigerAction(ai);};
+            creators["interrupt lorkhan"] = [](PlayerbotAI* ai){ return new InterruptLorkhanAction(ai);};
+            creators["curse of tongues lorkhan"] = [](PlayerbotAI* ai){return new CurseOfTonguesLorkhanAction(ai);};
             creators["balance thekal trio"] = [](PlayerbotAI* ai){return new BalanceThekalTrioAction(ai);};
             creators["finish thekal trio"] = [](PlayerbotAI* ai){return new FinishThekalTrioAction(ai);};
 

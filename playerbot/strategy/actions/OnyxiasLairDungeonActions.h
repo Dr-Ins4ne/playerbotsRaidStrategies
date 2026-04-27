@@ -98,7 +98,7 @@ namespace ai
         TargetOnyxiaWhelpAction(PlayerbotAI* ai)
             : OnyxiaActionBase(ai, "target onyxia whelp") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             return SetCurrentTarget(FindNearestAliveCreature(NPC_ONYXIAN_WHELP));
         }
@@ -111,7 +111,7 @@ namespace ai
         TargetOnyxiaAction(PlayerbotAI* ai)
             : OnyxiaActionBase(ai, "target onyxia") {}
 
-        bool Execute(Event event) override
+        bool Execute(Event& event) override
         {
             return SetCurrentTarget(FindAliveCreature(NPC_ONYXIA));
         }

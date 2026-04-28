@@ -46,9 +46,24 @@ namespace ai
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+            std::list<ObjectGuid> attackTargets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
 
-            for (ObjectGuid const& guid : targets)
+            for (ObjectGuid const& guid : attackTargets)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (!unit)
+                    continue;
+
+                if (!unit->IsAlive())
+                    continue;
+
+                if (unit->GetEntry() == entry)
+                    return unit;
+            }
+
+            std::list<ObjectGuid> possibleTargets = AI_VALUE(std::list<ObjectGuid>, "possible targets");
+
+            for (ObjectGuid const& guid : possibleTargets)
             {
                 Unit* unit = ai->GetUnit(guid);
                 if (!unit)
@@ -67,26 +82,21 @@ namespace ai
 
             return nullptr;
         }
-
-        std::vector<Unit*> FindAliveCreatures(uint32 entry)
+        bool ShouldSkipDpsRtiSelection()
         {
-            std::vector<Unit*> result;
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return true;
 
-            for (ObjectGuid const& guid : targets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
+            if (ai->IsHeal(bot))
+                return true;
 
-                if (!unit->IsAlive())
-                    continue;
+            // Use this only if your PlayerbotAI has IsTank().
+            // If it does not compile, replace it with your framework's tank-role check.
+            if (ai->IsTank(bot))
+                return true;
 
-                if (unit->GetEntry() == entry)
-                    result.push_back(unit);
-            }
-
-            return result;
+            return false;
         }
 
         float GetHealthPct(Unit* unit)
@@ -252,6 +262,8 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            if (ShouldSkipDpsRtiSelection())
+                return false;
             Unit* tiger = FindAliveCreature(NPC_TIGER);
             if (!tiger)
                 return false;
@@ -330,9 +342,12 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            if (ShouldSkipDpsRtiSelection())
+                return false;
             Unit* thekal  = FindAliveCreature(NPC_THEKAL);
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             Unit* zath    = FindAliveCreature(NPC_ZATH);
+            
 
             std::vector<Unit*> trio;
 
@@ -388,6 +403,8 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            if (ShouldSkipDpsRtiSelection())
+                return false;
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             Unit* zath    = FindAliveCreature(NPC_ZATH);
             Unit* thekal  = FindAliveCreature(NPC_THEKAL);
@@ -467,7 +484,7 @@ namespace ai
 
             // Avoidance and Hazards (NPC 14507 = Venoxis)
             creators["move away from venoxis"] = [](PlayerbotAI* ai){ return new MoveAwayFromCreature(ai, "move away from venoxis", 14507, 31.0f);};
-            creators["move away from hazard"] = [](PlayerbotAI* ai){return new MoveAwayFromHazard(ai, "move away from venoxis poison cloud");};
+            creators["move away from hazard"] = [](PlayerbotAI* ai){return new MoveAwayFromHazard(ai, "move away from hazard");};
             
             // Interactable bindings
             creators["move to zg interactable"] = &ZulGurubActionContext::move_to_zg_interactable;

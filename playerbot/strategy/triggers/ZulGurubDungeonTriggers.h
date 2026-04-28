@@ -3,6 +3,8 @@
 #include "DungeonTriggers.h"
 #include "GenericTriggers.h"
 #include "HealthTriggers.h"
+#include "playerbot/strategy/values/RtiTargetValue.h"
+#include "Groups/Group.h"
 
 namespace ai
 {
@@ -68,9 +70,24 @@ namespace ai
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+            std::list<ObjectGuid> attackTargets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
 
-            for (ObjectGuid const& guid : targets)
+            for (ObjectGuid const& guid : attackTargets)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (!unit)
+                    continue;
+
+                if (!unit->IsAlive())
+                    continue;
+
+                if (unit->GetEntry() == entry)
+                    return unit;
+            }
+
+            std::list<ObjectGuid> possibleTargets = AI_VALUE(std::list<ObjectGuid>, "possible targets");
+
+            for (ObjectGuid const& guid : possibleTargets)
             {
                 Unit* unit = ai->GetUnit(guid);
                 if (!unit)
@@ -134,6 +151,57 @@ namespace ai
         }
     };
 
+    class ThekalTargetsNeedMarkingTrigger : public ThekalTriggerBase
+    {
+    public:
+        ThekalTargetsNeedMarkingTrigger(PlayerbotAI* ai)
+            : ThekalTriggerBase(ai, "thekal targets need marking", 1) {}
+
+        bool IsActive() override
+        {
+            Group* group = bot->GetGroup();
+            if (!group)
+                return false;
+
+            if (bot->InBattleGround())
+                return false;
+
+            Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
+            Unit* zath    = FindAliveCreature(NPC_ZATH);
+            Unit* thekal  = FindAliveCreature(NPC_THEKAL);
+            Unit* tiger   = FindAliveCreature(NPC_TIGER);
+
+            if (!lorkhan && !zath && !thekal && !tiger)
+                return false;
+
+            if (lorkhan && !HasCorrectIcon(group, "skull", lorkhan))
+                return true;
+
+            if (zath && !HasCorrectIcon(group, "cross", zath))
+                return true;
+
+            if (thekal && !HasCorrectIcon(group, "square", thekal))
+                return true;
+
+            if (tiger && !HasCorrectIcon(group, "triangle", tiger))
+                return true;
+
+            return false;
+        }
+
+    private:
+        bool HasCorrectIcon(Group* group, std::string icon, Unit* unit)
+        {
+            if (!group || !unit)
+                return false;
+
+            int index = RtiTargetValue::GetRtiIndex(icon);
+            if (index < 0)
+                return false;
+
+            return group->GetTargetIcon(index) == unit->GetObjectGuid();
+        }
+    };
 
     class ThekalTigerAliveTrigger : public ThekalTriggerBase
     {
@@ -272,6 +340,7 @@ namespace ai
             creators["thekal trio ready to finish"] = [](PlayerbotAI* ai){return new ThekalTrioReadyToFinishTrigger(ai);};
             creators["thekal trio needs balance"] = [](PlayerbotAI* ai){return new ThekalTrioNeedsBalanceTrigger(ai);};
             creators["thekal trio broken"] = [](PlayerbotAI* ai){return new ThekalTrioBrokenTrigger(ai);};
+            creators["thekal targets need marking"] = [](PlayerbotAI* ai){return new ThekalTargetsNeedMarkingTrigger(ai);};
             
             creators["start arlokk fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start arlokk fight", "arlokk", 14515);};
             creators["end arlokk fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end arlokk fight", "arlokk", 14515);};

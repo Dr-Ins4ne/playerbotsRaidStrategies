@@ -27,8 +27,11 @@ void ZulGurubDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
         NextAction::array(0, new NextAction("enable gahz'ranka fight strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "start high priest thekal fight",
-        NextAction::array(0, new NextAction("enable high priest thekal fight strategy", 100.0f), NULL)));
+        "start thekal fight",
+        NextAction::array(0,
+            new NextAction("enable thekal fight strategy", 100.0f),
+            new NextAction("mark thekal targets", 90.0f),
+            NULL)));
 
     triggers.push_back(new TriggerNode(
         "start high priestess arlokk fight",
@@ -243,6 +246,10 @@ void GahzrankaFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multi
 void HighPriestThekalFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     // Keep raid icons updated.
+    triggers.push_back(new TriggerNode(
+        "thekal targets need marking",
+        NextAction::array(0, new NextAction("mark thekal targets", 300.0f), NULL)));
+
     triggers.push_back(new TriggerNode(
         "thekal trio needs balance",
         NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));

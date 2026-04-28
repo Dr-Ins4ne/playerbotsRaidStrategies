@@ -4,6 +4,7 @@
 #include "UseItemAction.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
+#include "RaidIconActionBase.h"
 
 namespace ai
 {
@@ -28,11 +29,53 @@ namespace ai
         UseMudskunkLureAction(PlayerbotAI* ai) : UseItemIdAction(ai, "use mudskunk lure") { qualifier = "{19974,entry filter::{gos close,zg water nodes}}"; }
     };
 
-
-    class ThekalRtiActionBase : public Action
+    class InterruptJeklikAction : public Action
     {
     public:
-        ThekalRtiActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name) {}
+        InterruptJeklikAction(PlayerbotAI* ai)
+            : Action(ai, "interrupt jeklik") {}
+
+        bool Execute(Event& event) override
+        {
+            Unit* jeklik = FindAliveCreature(14517);
+            if (!jeklik)
+                return false;
+
+            if (!jeklik->IsNonMeleeSpellCasted(true))
+                return false;
+
+            if (ai->CastSpell("silence", jeklik))
+                return true;
+
+            if (ai->CastSpell("kick", jeklik))
+                return true;
+
+            if (ai->CastSpell("counterspell", jeklik))
+                return true;
+
+            if (ai->CastSpell("pummel", jeklik))
+                return true;
+
+            if (ai->CastSpell("shield bash", jeklik))
+                return true;
+
+            if (ai->CastSpell("earth shock", jeklik))
+                return true;
+
+            if (ai->CastSpell("spell lock", jeklik))
+                return true;
+
+            if (ai->CastSpell("hammer of justice", jeklik))
+                return true;
+
+            return false;
+        }
+    };
+
+    class ThekalRtiActionBase : public RaidIconActionBase
+    {
+    public:
+        ThekalRtiActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
 
     protected:
         static const uint32 NPC_THEKAL  = 14509;
@@ -40,79 +83,10 @@ namespace ai
         static const uint32 NPC_ZATH    = 11348;
         static const uint32 NPC_TIGER   = 11361;
 
-        static constexpr float HOLD_HP_PCT   = 12.0f;
-        static constexpr float FINISH_HP_PCT = 12.0f;
+        static constexpr float HOLD_HP_PCT   = 15.0f;
+        static constexpr float FINISH_HP_PCT = 7.0f;
 
     protected:
-        Unit* FindAliveCreature(uint32 entry)
-        {
-            std::list<ObjectGuid> attackTargets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
-
-            for (ObjectGuid const& guid : attackTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            std::list<ObjectGuid> possibleTargets = AI_VALUE(std::list<ObjectGuid>, "possible targets");
-
-            for (ObjectGuid const& guid : possibleTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
-                return currentTarget;
-
-            return nullptr;
-        }
-        bool ShouldSkipDpsRtiSelection()
-        {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return true;
-
-            if (ai->IsHeal(bot))
-                return true;
-
-            // Use this only if your PlayerbotAI has IsTank().
-            // If it does not compile, replace it with your framework's tank-role check.
-            if (ai->IsTank(bot))
-                return true;
-
-            return false;
-        }
-
-        float GetHealthPct(Unit* unit)
-        {
-            if (!unit || !unit->GetMaxHealth())
-                return 0.0f;
-
-            return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
-        }
-
-        bool SetRti(std::string rti)
-        {
-            context->GetValue<std::string>("rti")->Set(rti);
-            return true;
-        }
-
         std::string GetIconForUnit(Unit* unit)
         {
             if (!unit)
@@ -131,81 +105,6 @@ namespace ai
                 default:
                     return "none";
             }
-        }
-
-        Unit* GetHighestHpTarget(std::vector<Unit*> const& targets)
-        {
-            Unit* best = nullptr;
-            float bestHp = -1.0f;
-
-            for (Unit* target : targets)
-            {
-                if (!target || !target->IsAlive())
-                    continue;
-
-                float hp = GetHealthPct(target);
-                if (hp > bestHp)
-                {
-                    bestHp = hp;
-                    best = target;
-                }
-            }
-
-            return best;
-        }
-
-        Unit* GetHighestHpTargetAbove(std::vector<Unit*> const& targets, float threshold)
-        {
-            Unit* best = nullptr;
-            float bestHp = -1.0f;
-
-            for (Unit* target : targets)
-            {
-                if (!target || !target->IsAlive())
-                    continue;
-
-                float hp = GetHealthPct(target);
-
-                if (hp <= threshold)
-                    continue;
-
-                if (hp > bestHp)
-                {
-                    bestHp = hp;
-                    best = target;
-                }
-            }
-
-            return best;
-        }
-
-        bool SetTargetIcon(std::string icon, Unit* target)
-        {
-            if (!target)
-                return false;
-
-            Group* group = bot->GetGroup();
-            if (!group)
-                return false;
-
-            if (bot->InBattleGround())
-                return false;
-
-            int index = RtiTargetValue::GetRtiIndex(icon);
-            if (index < 0)
-                return false;
-
-            ObjectGuid currentGuid = group->GetTargetIcon(index);
-            if (currentGuid == target->GetObjectGuid())
-                return true;
-
-    #ifndef MANGOSBOT_TWO
-            group->SetTargetIcon(index, target->GetObjectGuid());
-    #else
-            group->SetTargetIcon(index, bot->GetObjectGuid(), target->GetObjectGuid());
-    #endif
-
-            return true;
         }
 
         bool IsTrioReadyToFinish()
@@ -264,12 +163,16 @@ namespace ai
         {
             if (ShouldSkipDpsRtiSelection())
                 return false;
+
             Unit* tiger = FindAliveCreature(NPC_TIGER);
             if (!tiger)
                 return false;
 
-            SetTargetIcon("triangle", tiger);
-            return SetRti("triangle");
+            bool changed = false;
+            changed |= SetTargetIcon("triangle", tiger);
+            changed |= SetRti("triangle");
+
+            return changed;
         }
     };
 
@@ -390,8 +293,11 @@ namespace ai
             if (icon == "none")
                 return false;
 
-            SetTargetIcon(icon, target);
-            return SetRti(icon);
+            bool changed = false;
+            changed |= SetTargetIcon(icon, target);
+            changed |= SetRti(icon);
+
+            return changed;
         }
     };
 
@@ -411,13 +317,14 @@ namespace ai
 
             Unit* target = nullptr;
 
-            // During final burn, kill the healer first.
-            if (lorkhan)
+            // During final burn, kill the thekal first.
+            if (thekal)
+                target = thekal;
+            else if (lorkhan)
                 target = lorkhan;
             else if (zath)
                 target = zath;
-            else if (thekal)
-                target = thekal;
+   
 
             if (!target)
                 return false;
@@ -426,8 +333,11 @@ namespace ai
             if (icon == "none")
                 return false;
 
-            SetTargetIcon(icon, target);
-            return SetRti(icon);
+            bool changed = false;
+            changed |= SetTargetIcon(icon, target);
+            changed |= SetRti(icon);
+
+            return changed;
         }
     };
 
@@ -442,7 +352,7 @@ namespace ai
             // High Priestess Jeklik (Bat)
             creators["enable jeklik fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable jeklik fight strategy", "+jeklik");};
             creators["disable jeklik fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable jeklik fight strategy", "-jeklik");};
-            
+            creators["interrupt jeklik"] = [](PlayerbotAI* ai){return new InterruptJeklikAction(ai);};
             // High Priest Venoxis (Snake)
             creators["enable venoxis fight strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "enable venoxis fight strategy", "+venoxis");};
             creators["disable venoxis fight strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "disable venoxis fight strategy", "-venoxis");};

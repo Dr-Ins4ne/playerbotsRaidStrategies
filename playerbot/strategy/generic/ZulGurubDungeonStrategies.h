@@ -19,7 +19,7 @@ namespace ai
     {
     public:
         HighPriestessJeklikFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "high priestess jeklik"; }
+        std::string getName() override { return "jeklik"; }
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;

@@ -5,7 +5,7 @@
 #include "HealthTriggers.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
-
+#include "playerbot/strategy/actions/RaidIconActionBase.h"
 namespace ai
 {
 
@@ -49,7 +49,55 @@ namespace ai
         ZGWaterNodeCloseTrigger(PlayerbotAI* ai) : ValueTrigger(ai, "zg water node close", 1) { qualifier = "has object::go usable filter::entry filter::{gos close,zg water nodes}"; }
     };
 
+   
 
+    class InterruptJeklikAction : public RaidIconActionBase
+    {
+    public:
+        InterruptJeklikAction(PlayerbotAI* ai)
+            : RaidIconActionBase(ai, "interrupt jeklik") {}
+
+        bool Execute(Event& event) override
+        {
+            Unit* jeklik = FindAliveCreature(NPC_JEKLIK);
+            if (!jeklik)
+                return false;
+
+            if (!jeklik->IsNonMeleeSpellCasted(true))
+                return false;
+
+            // Silence if possible
+            if (ai->CastSpell("silence", jeklik))
+                return true;
+
+            // Normal interrupts
+            if (ai->CastSpell("kick", jeklik))
+                return true;
+
+            if (ai->CastSpell("counterspell", jeklik))
+                return true;
+
+            if (ai->CastSpell("pummel", jeklik))
+                return true;
+
+            if (ai->CastSpell("shield bash", jeklik))
+                return true;
+
+            if (ai->CastSpell("earth shock", jeklik))
+                return true;
+
+            if (ai->CastSpell("spell lock", jeklik))
+                return true;
+
+            if (ai->CastSpell("hammer of justice", jeklik))
+                return true;
+
+            return false;
+        }
+
+    private:
+        static const uint32 NPC_JEKLIK = 14517;
+    };
 
 
     class ThekalTriggerBase : public Trigger
@@ -64,8 +112,8 @@ namespace ai
         static const uint32 NPC_ZATH    = 11348;
         static const uint32 NPC_TIGER   = 11361;
 
-        static constexpr float HOLD_HP_PCT   = 12.0f;
-        static constexpr float FINISH_HP_PCT = 12.0f;
+
+        static constexpr float FINISH_HP_PCT = 7.0f;
 
     protected:
         Unit* FindAliveCreature(uint32 entry)
@@ -316,7 +364,10 @@ namespace ai
             // Boss fight triggers with exact CMaNGOS NPC IDs
             creators["start jeklik fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start jeklik fight", "jeklik", 14517);};
             creators["end jeklik fight"] = [](PlayerbotAI* ai) {return new EndBossFightTrigger(ai, "end jeklik fight", "jeklik", 14517);};
+            creators["jeklik casting"] = [](PlayerbotAI* ai){ return new JeklikCastingTrigger(ai);};
             
+
+
             creators["start venoxis fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start venoxis fight", "venoxis", 14507);};
             creators["end venoxis fight"] = [](PlayerbotAI* ai) {return new EndBossFightTrigger(ai, "end venoxis fight", "venoxis", 14507);};
             

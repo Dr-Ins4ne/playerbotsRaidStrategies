@@ -182,6 +182,7 @@ namespace ai
         
             creators["onyxia"] = [](PlayerbotAI* ai){ return new OnyxiaFightStrategy(ai); };
             creators["thekal"] = [](PlayerbotAI* ai){ return new HighPriestThekalFightStrategy(ai); };
+            creators["jeklik"] = [](PlayerbotAI* ai){ return new HighPriestessJeklikFightStrategy(ai); };
       
             creators["lucifron"] = [](PlayerbotAI* ai){ return new LucifronFightStrategy(ai); };
             creators["magmadar"] = [](PlayerbotAI* ai){ return new MagmadarFightStrategy(ai); };

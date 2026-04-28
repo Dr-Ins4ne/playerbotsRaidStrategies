@@ -7,8 +7,8 @@ using namespace ai;
 void ZulGurubDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "start high priestess jeklik fight",
-        NextAction::array(0, new NextAction("enable high priestess jeklik fight strategy", 100.0f), NULL)));
+        "start jeklik fight",
+        NextAction::array(0, new NextAction("enable jeklik fight strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
         "start high priest venoxis fight",
@@ -74,26 +74,31 @@ void ZulGurubDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& tri
 
 void HighPriestessJeklikFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific combat triggers
+    triggers.push_back(new TriggerNode(
+        "jeklik casting",
+        NextAction::array(0, new NextAction("interrupt jeklik", 300.0f), NULL)));
 }
+
 
 void HighPriestessJeklikFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "end high priestess jeklik fight",
-        NextAction::array(0, new NextAction("disable high priestess jeklik fight strategy", 100.0f), NULL)));
+        "end jeklik fight",
+        NextAction::array(0, new NextAction("disable jeklik fight strategy", 100.0f), NULL)));
 }
 
 void HighPriestessJeklikFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "end high priestess jeklik fight",
-        NextAction::array(0, new NextAction("disable high priestess jeklik fight strategy", 100.0f), NULL)));
+        "end jeklik fight",
+        NextAction::array(0, new NextAction("disable jeklik fight strategy", 100.0f), NULL)));
 }
 
 void HighPriestessJeklikFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific reaction triggers
+    triggers.push_back(new TriggerNode(
+        "jeklik casting",
+        NextAction::array(0, new NextAction("interrupt jeklik", 300.0f), NULL)));
 }
 
 void HighPriestessJeklikFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
@@ -251,43 +256,25 @@ void HighPriestThekalFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& 
         NextAction::array(0, new NextAction("mark thekal targets", 300.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "thekal trio needs balance",
-        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "thekal trio ready to finish",
-        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "thekal tiger alive",
-        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
-
-    // Highest priority: interrupt Lor'Khan.
-    triggers.push_back(new TriggerNode(
         "lorkhan casting",
-        NextAction::array(0, new NextAction("interrupt lorkhan", 300.0f), NULL)));
+        NextAction::array(0, new NextAction("interrupt lorkhan", 290.0f), NULL)));
 
-    // Warlock-only trigger.
     triggers.push_back(new TriggerNode(
         "lorkhan needs curse of tongues",
-        NextAction::array(0, new NextAction("curse of tongues lorkhan", 250.0f), NULL)));
+        NextAction::array(0, new NextAction("curse of tongues lorkhan", 260.0f), NULL)));
 
-    // Tiger adds first.
     triggers.push_back(new TriggerNode(
         "thekal tiger alive",
         NextAction::array(0, new NextAction("select thekal tiger rti", 220.0f), NULL)));
 
-    // Emergency: if the trio is broken, burn remaining targets.
     triggers.push_back(new TriggerNode(
         "thekal trio broken",
         NextAction::array(0, new NextAction("select finish thekal rti", 215.0f), NULL)));
 
-    // If all three are synchronized low, finish them.
     triggers.push_back(new TriggerNode(
         "thekal trio ready to finish",
         NextAction::array(0, new NextAction("select finish thekal rti", 210.0f), NULL)));
 
-    // Normal phase-1 balancing.
     triggers.push_back(new TriggerNode(
         "thekal trio needs balance",
         NextAction::array(0, new NextAction("select balanced thekal rti", 120.0f), NULL)));

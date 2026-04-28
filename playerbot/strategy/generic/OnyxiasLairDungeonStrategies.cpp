@@ -1,20 +1,17 @@
 #include "playerbot/playerbot.h"
-#include "OnyxiaDungeonStrategies.h"
+#include "OnyxiasLairDungeonStrategies.h"
 #include "DungeonMultipliers.h"
 
 using namespace ai;
 
-void OnyxiaLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+void OnyxiasLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
         "start onyxia fight",
         NextAction::array(0, new NextAction("enable onyxia fight strategy", 100.0f), NULL)));
 }
 
-void OnyxiaLairDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
-{
-    // No generic Onyxia's Lair non-combat triggers yet.
-}
+
 
 
 // Onyxia Fight Strategy

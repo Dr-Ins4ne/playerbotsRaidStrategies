@@ -2,7 +2,8 @@
 #include "DungeonActions.h"
 #include "ChangeStrategyAction.h"
 #include "UseItemAction.h"
-
+#include "playerbot/strategy/values/RtiTargetValue.h"
+#include "Groups/Group.h"
 
 namespace ai
 {
@@ -28,10 +29,10 @@ namespace ai
     };
 
 
-   class ThekalActionBase : public Action
+    class ThekalRtiActionBase : public Action
     {
     public:
-        ThekalActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name) {}
+        ThekalRtiActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name) {}
 
     protected:
         static const uint32 NPC_THEKAL  = 14509;
@@ -39,7 +40,8 @@ namespace ai
         static const uint32 NPC_ZATH    = 11348;
         static const uint32 NPC_TIGER   = 11361;
 
-        static constexpr float HOLD_HP_PCT = 12.0f;
+        static constexpr float HOLD_HP_PCT   = 12.0f;
+        static constexpr float FINISH_HP_PCT = 12.0f;
 
     protected:
         Unit* FindAliveCreature(uint32 entry)
@@ -66,6 +68,27 @@ namespace ai
             return nullptr;
         }
 
+        std::vector<Unit*> FindAliveCreatures(uint32 entry)
+        {
+            std::vector<Unit*> result;
+            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+
+            for (ObjectGuid const& guid : targets)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (!unit)
+                    continue;
+
+                if (!unit->IsAlive())
+                    continue;
+
+                if (unit->GetEntry() == entry)
+                    result.push_back(unit);
+            }
+
+            return result;
+        }
+
         float GetHealthPct(Unit* unit)
         {
             if (!unit || !unit->GetMaxHealth())
@@ -74,15 +97,30 @@ namespace ai
             return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
         }
 
-        bool SetCurrentTarget(Unit* target)
+        bool SetRti(std::string rti)
         {
-            if (!target)
-                return false;
-
-            context->GetValue<Unit*>("current target")->Set(target);
-            ai->GetBot()->SetSelectionGuid(target->GetObjectGuid());
-
+            context->GetValue<std::string>("rti")->Set(rti);
             return true;
+        }
+
+        std::string GetIconForUnit(Unit* unit)
+        {
+            if (!unit)
+                return "none";
+
+            switch (unit->GetEntry())
+            {
+                case NPC_LORKHAN:
+                    return "skull";
+                case NPC_ZATH:
+                    return "cross";
+                case NPC_THEKAL:
+                    return "square";
+                case NPC_TIGER:
+                    return "triangle";
+                default:
+                    return "none";
+            }
         }
 
         Unit* GetHighestHpTarget(std::vector<Unit*> const& targets)
@@ -106,7 +144,7 @@ namespace ai
             return best;
         }
 
-        Unit* GetHighestHpTargetAboveHold(std::vector<Unit*> const& targets)
+        Unit* GetHighestHpTargetAbove(std::vector<Unit*> const& targets, float threshold)
         {
             Unit* best = nullptr;
             float bestHp = -1.0f;
@@ -118,7 +156,7 @@ namespace ai
 
                 float hp = GetHealthPct(target);
 
-                if (hp <= HOLD_HP_PCT)
+                if (hp <= threshold)
                     continue;
 
                 if (hp > bestHp)
@@ -130,26 +168,105 @@ namespace ai
 
             return best;
         }
+
+        bool SetTargetIcon(std::string icon, Unit* target)
+        {
+            if (!target)
+                return false;
+
+            Group* group = bot->GetGroup();
+            if (!group)
+                return false;
+
+            if (bot->InBattleGround())
+                return false;
+
+            int index = RtiTargetValue::GetRtiIndex(icon);
+            if (index < 0)
+                return false;
+
+            ObjectGuid currentGuid = group->GetTargetIcon(index);
+            if (currentGuid == target->GetObjectGuid())
+                return true;
+
+    #ifndef MANGOSBOT_TWO
+            group->SetTargetIcon(index, target->GetObjectGuid());
+    #else
+            group->SetTargetIcon(index, bot->GetObjectGuid(), target->GetObjectGuid());
+    #endif
+
+            return true;
+        }
+
+        bool IsTrioReadyToFinish()
+        {
+            Unit* thekal  = FindAliveCreature(NPC_THEKAL);
+            Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
+            Unit* zath    = FindAliveCreature(NPC_ZATH);
+
+            if (!thekal || !lorkhan || !zath)
+                return false;
+
+            return GetHealthPct(thekal)  <= FINISH_HP_PCT &&
+                GetHealthPct(lorkhan) <= FINISH_HP_PCT &&
+                GetHealthPct(zath)    <= FINISH_HP_PCT;
+        }
     };
 
-    class TargetThekalTigerAction : public ThekalActionBase
+    class MarkThekalTargetsAction : public ThekalRtiActionBase
     {
     public:
-        TargetThekalTigerAction(PlayerbotAI* ai)
-            : ThekalActionBase(ai, "target thekal tiger") {}
+        MarkThekalTargetsAction(PlayerbotAI* ai)
+            : ThekalRtiActionBase(ai, "mark thekal targets") {}
 
         bool Execute(Event& event) override
         {
-            return SetCurrentTarget(FindAliveCreature(NPC_TIGER));
+            bool marked = false;
+
+            Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
+            Unit* zath    = FindAliveCreature(NPC_ZATH);
+            Unit* thekal  = FindAliveCreature(NPC_THEKAL);
+            Unit* tiger   = FindAliveCreature(NPC_TIGER);
+
+            if (lorkhan)
+                marked |= SetTargetIcon("skull", lorkhan);
+
+            if (zath)
+                marked |= SetTargetIcon("cross", zath);
+
+            if (thekal)
+                marked |= SetTargetIcon("square", thekal);
+
+            if (tiger)
+                marked |= SetTargetIcon("triangle", tiger);
+
+            return marked;
+        }
+    };
+
+    class SelectThekalTigerRtiAction : public ThekalRtiActionBase
+    {
+    public:
+        SelectThekalTigerRtiAction(PlayerbotAI* ai)
+            : ThekalRtiActionBase(ai, "select thekal tiger rti") {}
+
+        bool Execute(Event& event) override
+        {
+            Unit* tiger = FindAliveCreature(NPC_TIGER);
+            if (!tiger)
+                return false;
+
+            SetTargetIcon("triangle", tiger);
+            return SetRti("triangle");
         }
     };
 
 
-    class InterruptLorkhanAction : public ThekalActionBase
+    class InterruptLorkhanAction : public ThekalRtiActionBase
     {
     public:
         InterruptLorkhanAction(PlayerbotAI* ai)
-            : ThekalActionBase(ai, "interrupt lorkhan") {}
+            : ThekalRtiActionBase(ai, "interrupt lorkhan") {}
 
         bool Execute(Event& event) override
         {
@@ -157,7 +274,8 @@ namespace ai
             if (!lorkhan)
                 return false;
 
-            SetCurrentTarget(lorkhan);
+            if (!lorkhan->IsNonMeleeSpellCasted(true))
+                return false;
 
             if (ai->CastSpell("kick", lorkhan))
                 return true;
@@ -185,11 +303,11 @@ namespace ai
     };
 
 
-    class CurseOfTonguesLorkhanAction : public ThekalActionBase
+    class CurseOfTonguesLorkhanAction : public ThekalRtiActionBase
     {
     public:
         CurseOfTonguesLorkhanAction(PlayerbotAI* ai)
-            : ThekalActionBase(ai, "curse of tongues lorkhan") {}
+            : ThekalRtiActionBase(ai, "curse of tongues lorkhan") {}
 
         bool Execute(Event& event) override
         {
@@ -197,17 +315,18 @@ namespace ai
             if (!lorkhan)
                 return false;
 
-            SetCurrentTarget(lorkhan);
+            if (ai->HasAura("curse of tongues", lorkhan))
+                return false;
+
             return ai->CastSpell("curse of tongues", lorkhan);
         }
     };
 
-
-    class BalanceThekalTrioAction : public ThekalActionBase
+    class SelectBalancedThekalRtiAction : public ThekalRtiActionBase
     {
     public:
-        BalanceThekalTrioAction(PlayerbotAI* ai)
-            : ThekalActionBase(ai, "balance thekal trio") {}
+        SelectBalancedThekalRtiAction(PlayerbotAI* ai)
+            : ThekalRtiActionBase(ai, "select balanced thekal rti") {}
 
         bool Execute(Event& event) override
         {
@@ -231,36 +350,41 @@ namespace ai
 
             Player* bot = ai->GetBot();
 
-            // Rogue behavior is different:
-            // rogue pressures Lor'Khan, but only while Lor'Khan is above hold HP.
+            Unit* target = nullptr;
+
+            // Rogue-specific:
+            // Rogue pressures Lor'Khan, but stops before killing her too early.
             if (bot->getClass() == CLASS_ROGUE)
             {
                 if (lorkhan && GetHealthPct(lorkhan) > HOLD_HP_PCT)
-                    return SetCurrentTarget(lorkhan);
-
-                Unit* target = GetHighestHpTargetAboveHold(trio);
-                if (target)
-                    return SetCurrentTarget(target);
-
-                return SetCurrentTarget(GetHighestHpTarget(trio));
+                    target = lorkhan;
+                else
+                    target = GetHighestHpTargetAbove(trio, HOLD_HP_PCT);
+            }
+            else
+            {
+                // Generic:
+                // Attack highest-health trio member above hold threshold.
+                target = GetHighestHpTargetAbove(trio, HOLD_HP_PCT);
             }
 
-            // Generic behavior:
-            // balance the trio by always attacking the highest-health target above hold HP.
-            Unit* target = GetHighestHpTargetAboveHold(trio);
-            if (target)
-                return SetCurrentTarget(target);
+            if (!target)
+                target = GetHighestHpTarget(trio);
 
-            return SetCurrentTarget(GetHighestHpTarget(trio));
+            std::string icon = GetIconForUnit(target);
+            if (icon == "none")
+                return false;
+
+            SetTargetIcon(icon, target);
+            return SetRti(icon);
         }
     };
 
-
-    class FinishThekalTrioAction : public ThekalActionBase
+    class SelectFinishThekalRtiAction : public ThekalRtiActionBase
     {
     public:
-        FinishThekalTrioAction(PlayerbotAI* ai)
-            : ThekalActionBase(ai, "finish thekal trio") {}
+        SelectFinishThekalRtiAction(PlayerbotAI* ai)
+            : ThekalRtiActionBase(ai, "select finish thekal rti") {}
 
         bool Execute(Event& event) override
         {
@@ -268,17 +392,25 @@ namespace ai
             Unit* zath    = FindAliveCreature(NPC_ZATH);
             Unit* thekal  = FindAliveCreature(NPC_THEKAL);
 
-            // Burn healer first.
+            Unit* target = nullptr;
+
+            // During final burn, kill the healer first.
             if (lorkhan)
-                return SetCurrentTarget(lorkhan);
+                target = lorkhan;
+            else if (zath)
+                target = zath;
+            else if (thekal)
+                target = thekal;
 
-            if (zath)
-                return SetCurrentTarget(zath);
+            if (!target)
+                return false;
 
-            if (thekal)
-                return SetCurrentTarget(thekal);
+            std::string icon = GetIconForUnit(target);
+            if (icon == "none")
+                return false;
 
-            return false;
+            SetTargetIcon(icon, target);
+            return SetRti(icon);
         }
     };
 
@@ -313,11 +445,13 @@ namespace ai
             // High Priest Thekal (Tiger)
             creators["enable thekal fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable thekal fight strategy", "+thekal");};
             creators["disable thekal fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable thekal fight strategy", "-thekal");};
-            creators["attack thekal tiger"] = [](PlayerbotAI* ai){return new TargetThekalTigerAction(ai);};
             creators["interrupt lorkhan"] = [](PlayerbotAI* ai){ return new InterruptLorkhanAction(ai);};
             creators["curse of tongues lorkhan"] = [](PlayerbotAI* ai){return new CurseOfTonguesLorkhanAction(ai);};
-            creators["balance thekal trio"] = [](PlayerbotAI* ai){return new BalanceThekalTrioAction(ai);};
-            creators["finish thekal trio"] = [](PlayerbotAI* ai){return new FinishThekalTrioAction(ai);};
+            creators["mark thekal targets"] = [](PlayerbotAI* ai){return new MarkThekalTargetsAction(ai);};
+            creators["select thekal tiger rti"] = [](PlayerbotAI* ai){return new SelectThekalTigerRtiAction(ai);};
+            creators["select balanced thekal rti"] = [](PlayerbotAI* ai){return new SelectBalancedThekalRtiAction(ai);};
+            creators["select finish thekal rti"] = [](PlayerbotAI* ai){return new SelectFinishThekalRtiAction(ai);};
+
 
             // High Priestess Arlokk (Panther)
             creators["enable arlokk fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable arlokk fight strategy", "+arlokk");};

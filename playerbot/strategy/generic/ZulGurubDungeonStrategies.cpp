@@ -242,12 +242,25 @@ void GahzrankaFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multi
 // High Priest Thekal Fight Strategy
 void HighPriestThekalFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    // Keep raid icons updated.
+    triggers.push_back(new TriggerNode(
+        "thekal trio needs balance",
+        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "thekal trio ready to finish",
+        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "thekal tiger alive",
+        NextAction::array(0, new NextAction("mark thekal targets", 280.0f), NULL)));
+
     // Highest priority: interrupt Lor'Khan.
     triggers.push_back(new TriggerNode(
         "lorkhan casting",
         NextAction::array(0, new NextAction("interrupt lorkhan", 300.0f), NULL)));
 
-    // Warlock-only trigger. The trigger itself checks class == CLASS_WARLOCK.
+    // Warlock-only trigger.
     triggers.push_back(new TriggerNode(
         "lorkhan needs curse of tongues",
         NextAction::array(0, new NextAction("curse of tongues lorkhan", 250.0f), NULL)));
@@ -255,22 +268,22 @@ void HighPriestThekalFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& 
     // Tiger adds first.
     triggers.push_back(new TriggerNode(
         "thekal tiger alive",
-        NextAction::array(0, new NextAction("target thekal tiger", 220.0f), NULL)));
+        NextAction::array(0, new NextAction("select thekal tiger rti", 220.0f), NULL)));
 
-    // If the trio is already broken, burn remaining targets quickly.
+    // Emergency: if the trio is broken, burn remaining targets.
     triggers.push_back(new TriggerNode(
         "thekal trio broken",
-        NextAction::array(0, new NextAction("finish thekal trio", 215.0f), NULL)));
+        NextAction::array(0, new NextAction("select finish thekal rti", 215.0f), NULL)));
 
     // If all three are synchronized low, finish them.
     triggers.push_back(new TriggerNode(
         "thekal trio ready to finish",
-        NextAction::array(0, new NextAction("finish thekal trio", 210.0f), NULL)));
+        NextAction::array(0, new NextAction("select finish thekal rti", 210.0f), NULL)));
 
     // Normal phase-1 balancing.
     triggers.push_back(new TriggerNode(
         "thekal trio needs balance",
-        NextAction::array(0, new NextAction("balance thekal trio", 120.0f), NULL)));
+        NextAction::array(0, new NextAction("select balanced thekal rti", 120.0f), NULL)));
 }
 
 void HighPriestThekalFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -296,7 +309,6 @@ void HighPriestThekalFightStrategy::InitReactionTriggers(std::list<TriggerNode*>
 
 void HighPriestThekalFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
-    // No Thekal-specific multiplier yet.
 }
 
 // High Priestess Arlokk Fight Strategy

@@ -55,6 +55,7 @@
 #include "generic/BlackwingLairDungeonStrategies.h"
 #include "generic/KarazhanDungeonStrategies.h"
 #include "generic/NaxxramasDungeonStrategies.h"
+#include "generic/ZulGurubDungeonStrategies.h"
 
 namespace ai
 {
@@ -168,6 +169,7 @@ namespace ai
             creators["molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreDungeonStrategy(ai); };
             creators["blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairDungeonStrategy(ai); };
             creators["ahnqiraj ruins"] = [](PlayerbotAI* ai) { return new AhnQirajRuinsDungeonStrategy(ai); };
+            creators["zul gurub"] = [](PlayerbotAI* ai) { return new ZulGurubDungeonStrategy(ai); };
             creators["karazhan"] = [](PlayerbotAI* ai) { return new KarazhanDungeonStrategy(ai); };
             creators["naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasDungeonStrategy(ai); };
 
@@ -178,6 +180,8 @@ namespace ai
             creators["prince malchezaar"] = [](PlayerbotAI* ai) { return new PrinceMalchezaarFightStrategy(ai); };
             creators["four horseman"] = [](PlayerbotAI* ai) { return new FourHorsemanFightStrategy(ai); };
         
+            creators["onyxia"] = [](PlayerbotAI* ai){ return new OnyxiaFightStrategy(ai); };
+            creators["thekal"] = [](PlayerbotAI* ai){ return new HighPriestThekalFightStrategy(ai); };
       
             creators["lucifron"] = [](PlayerbotAI* ai){ return new LucifronFightStrategy(ai); };
             creators["magmadar"] = [](PlayerbotAI* ai){ return new MagmadarFightStrategy(ai); };

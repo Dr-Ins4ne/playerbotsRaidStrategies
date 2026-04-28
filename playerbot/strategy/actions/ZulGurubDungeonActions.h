@@ -29,11 +29,11 @@ namespace ai
         UseMudskunkLureAction(PlayerbotAI* ai) : UseItemIdAction(ai, "use mudskunk lure") { qualifier = "{19974,entry filter::{gos close,zg water nodes}}"; }
     };
 
-    class InterruptJeklikAction : public Action
+    class InterruptJeklikAction : public RaidIconActionBase
     {
     public:
         InterruptJeklikAction(PlayerbotAI* ai)
-            : Action(ai, "interrupt jeklik") {}
+            : RaidIconActionBase(ai, "interrupt jeklik") {}
 
         bool Execute(Event& event) override
         {

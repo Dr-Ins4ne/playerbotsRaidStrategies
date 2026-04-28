@@ -294,3 +294,77 @@ bool ItemBuffReadyTrigger::IsActive()
 
     return false;
 }
+
+Unit* DungeonCreatureTrigger::FindCreature(uint32 entry, bool aliveOnly)
+{
+    auto isValid = [entry, aliveOnly](Unit* unit) -> bool
+    {
+        if (!unit)
+            return false;
+
+        if (aliveOnly && !unit->IsAlive())
+            return false;
+
+        return unit->GetEntry() == entry;
+    };
+
+    Unit* currentTarget = AI_VALUE(Unit*, "current target");
+    if (isValid(currentTarget))
+        return currentTarget;
+
+    auto findInList = [this, &isValid](std::list<ObjectGuid> const& guids) -> Unit*
+    {
+        for (ObjectGuid const& guid : guids)
+        {
+            Unit* unit = ai->GetUnit(guid);
+            if (isValid(unit))
+                return unit;
+        }
+
+        return nullptr;
+    };
+
+    Unit* unit = findInList(AI_VALUE(std::list<ObjectGuid>, "possible attack targets"));
+    if (unit)
+        return unit;
+
+    unit = findInList(AI_VALUE(std::list<ObjectGuid>, "attackers"));
+    if (unit)
+        return unit;
+
+    unit = findInList(AI_VALUE(std::list<ObjectGuid>, "possible targets"));
+    if (unit)
+        return unit;
+
+    return nullptr;
+}
+
+Unit* DungeonCreatureTrigger::FindAliveCreature(uint32 entry)
+{
+    return FindCreature(entry, true);
+}
+
+bool DungeonCreatureTrigger::IsAlive(uint32 entry)
+{
+    return FindAliveCreature(entry) != nullptr;
+}
+
+bool DungeonCreatureTrigger::IsNonMeleeCasting(uint32 entry)
+{
+    Unit* unit = FindAliveCreature(entry);
+    return unit && unit->IsNonMeleeSpellCasted(true);
+}
+
+float DungeonCreatureTrigger::GetHealthPct(Unit* unit)
+{
+    if (!unit || !unit->GetMaxHealth())
+        return 0.0f;
+
+    return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
+}
+
+bool IsInterruptableCasting(uint32 entry)
+{
+    Unit* unit = FindAliveCreature(entry);
+    return unit && ai->IsInterruptableSpellCasting(unit, getName(), true);
+}

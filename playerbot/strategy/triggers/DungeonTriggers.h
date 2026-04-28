@@ -168,4 +168,21 @@ namespace ai
     private:
         uint32 buffID;
     };
+
+    class DungeonCreatureTrigger : public Trigger
+    {
+    public:
+        DungeonCreatureTrigger(PlayerbotAI* ai, std::string name, int checkInterval = 1)
+            : Trigger(ai, name, checkInterval) {}
+
+    protected:
+        Unit* FindCreature(uint32 entry, bool aliveOnly = true);
+        Unit* FindAliveCreature(uint32 entry);
+
+        bool IsAlive(uint32 entry);
+        bool IsNonMeleeCasting(uint32 entry);
+        bool IsInterruptableCasting(uint32 entry);
+
+        float GetHealthPct(Unit* unit);
+    };
 }

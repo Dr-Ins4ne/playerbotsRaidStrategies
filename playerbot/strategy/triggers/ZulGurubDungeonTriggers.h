@@ -49,56 +49,20 @@ namespace ai
         ZGWaterNodeCloseTrigger(PlayerbotAI* ai) : ValueTrigger(ai, "zg water node close", 1) { qualifier = "has object::go usable filter::entry filter::{gos close,zg water nodes}"; }
     };
 
-   
-
-    class InterruptJeklikAction : public RaidIconActionBase
+    class JeklikCastingTrigger : public DungeonCreatureTrigger
     {
     public:
-        InterruptJeklikAction(PlayerbotAI* ai)
-            : RaidIconActionBase(ai, "interrupt jeklik") {}
+        JeklikCastingTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "jeklik casting", 1) {}
 
-        bool Execute(Event& event) override
+        bool IsActive() override
         {
-            Unit* jeklik = FindAliveCreature(NPC_JEKLIK);
-            if (!jeklik)
-                return false;
-
-            if (!jeklik->IsNonMeleeSpellCasted(true))
-                return false;
-
-            // Silence if possible
-            if (ai->CastSpell("silence", jeklik))
-                return true;
-
-            // Normal interrupts
-            if (ai->CastSpell("kick", jeklik))
-                return true;
-
-            if (ai->CastSpell("counterspell", jeklik))
-                return true;
-
-            if (ai->CastSpell("pummel", jeklik))
-                return true;
-
-            if (ai->CastSpell("shield bash", jeklik))
-                return true;
-
-            if (ai->CastSpell("earth shock", jeklik))
-                return true;
-
-            if (ai->CastSpell("spell lock", jeklik))
-                return true;
-
-            if (ai->CastSpell("hammer of justice", jeklik))
-                return true;
-
-            return false;
+            return IsInterruptableCasting(NPC_JEKLIK);
         }
 
     private:
         static const uint32 NPC_JEKLIK = 14517;
     };
-
 
     class ThekalTriggerBase : public Trigger
     {

@@ -363,7 +363,7 @@ float DungeonCreatureTrigger::GetHealthPct(Unit* unit)
     return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
 }
 
-bool IsInterruptableCasting(uint32 entry)
+bool DungeonCreatureTrigger::IsInterruptableCasting(uint32 entry)
 {
     Unit* unit = FindAliveCreature(entry);
     return unit && ai->IsInterruptableSpellCasting(unit, getName(), true);

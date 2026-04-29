@@ -49,6 +49,157 @@ namespace ai
         ZGWaterNodeCloseTrigger(PlayerbotAI* ai) : ValueTrigger(ai, "zg water node close", 1) { qualifier = "has object::go usable filter::entry filter::{gos close,zg water nodes}"; }
     };
 
+    class HakkarTriggerBase : public DungeonCreatureTrigger
+    {
+    public:
+        HakkarTriggerBase(PlayerbotAI* ai, std::string name, int checkInterval = 1)
+            : DungeonCreatureTrigger(ai, name, checkInterval) {}
+
+    protected:
+        static const uint32 NPC_HAKKAR = 14834;
+
+        // TODO: replace with your desired fixed Hakkar tank position.
+        static constexpr float HAKKAR_TANK_X = -11875.0f;
+        static constexpr float HAKKAR_TANK_Y = -1660.0f;
+        static constexpr float HAKKAR_TANK_Z = 43.0f;
+
+        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
+
+    protected:
+        Unit* FindHakkar()
+        {
+            return FindAliveCreature(NPC_HAKKAR);
+        }
+
+        bool IsHakkarTargetingMe()
+        {
+            Unit* hakkar = FindHakkar();
+            if (!hakkar)
+                return false;
+
+            Unit* victim = hakkar->GetVictim();
+            return victim && victim->GetObjectGuid() == bot->GetObjectGuid();
+        }
+
+        bool IsAtHakkarTankPosition()
+        {
+            return bot->GetDistance(
+                HAKKAR_TANK_X,
+                HAKKAR_TANK_Y,
+                HAKKAR_TANK_Z
+            ) <= HAKKAR_TANK_POSITION_RADIUS;
+        }
+
+        bool IsValidMindControlTarget(Unit* unit)
+        {
+            if (!unit || !unit->IsAlive())
+                return false;
+
+            if (unit == bot)
+                return false;
+
+            if (unit->GetTypeId() != TYPEID_PLAYER)
+                return false;
+
+            if (!bot->IsInGroup(unit))
+                return false;
+
+            // Hakkar MC/charm state.
+            if (!unit->HasAuraType(SPELL_AURA_MOD_CHARM))
+                return false;
+
+            // Do not spam CC if one of our intended controls is already present.
+            if (ai->HasAura("polymorph", unit))
+                return false;
+
+            if (ai->HasAura("fear", unit))
+                return false;
+
+            if (ai->HasAura("entangling roots", unit))
+                return false;
+
+            return true;
+        }
+
+        Unit* FindMindControlledTargetInList(std::list<ObjectGuid> const& guids)
+        {
+            for (ObjectGuid const& guid : guids)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (IsValidMindControlTarget(unit))
+                    return unit;
+            }
+
+            return nullptr;
+        }
+
+        Unit* FindHakkarMindControlledTarget()
+        {
+            Unit* target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible attack targets"));
+            if (target)
+                return target;
+
+            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "attackers"));
+            if (target)
+                return target;
+
+            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible targets"));
+            if (target)
+                return target;
+
+            return nullptr;
+        }
+    };
+
+
+    class HakkarAggroHolderOutOfPositionTrigger : public HakkarTriggerBase
+    {
+    public:
+        HakkarAggroHolderOutOfPositionTrigger(PlayerbotAI* ai)
+            : HakkarTriggerBase(ai, "hakkar aggro holder out of position", 1) {}
+
+        bool IsActive() override
+        {
+            if (!bot->IsInWorld() || bot->IsBeingTeleported())
+                return false;
+
+            if (!ai->CanMove())
+                return false;
+
+            if (!IsHakkarTargetingMe())
+                return false;
+
+            return !IsAtHakkarTankPosition();
+        }
+    };
+
+
+    class HakkarMindControlTargetNeedsCcTrigger : public HakkarTriggerBase
+    {
+    public:
+        HakkarMindControlTargetNeedsCcTrigger(PlayerbotAI* ai)
+            : HakkarTriggerBase(ai, "hakkar mind control target needs cc", 1) {}
+
+        bool IsActive() override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                case CLASS_WARLOCK:
+                case CLASS_DRUID:
+                    break;
+                default:
+                    return false;
+            }
+
+            return FindHakkarMindControlledTarget() != nullptr;
+        }
+    };
+
     class JeklikCastingTrigger : public DungeonCreatureTrigger
     {
     public:
@@ -64,11 +215,66 @@ namespace ai
         static const uint32 NPC_JEKLIK = 14517;
     };
 
-    class ThekalTriggerBase : public Trigger
+    class JeklikNeedsCurseOfTonguesTrigger : public DungeonCreatureTrigger
+    {
+    public:
+        JeklikNeedsCurseOfTonguesTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "jeklik needs curse of tongues", 1) {}
+
+        bool IsActive() override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot || bot->getClass() != CLASS_WARLOCK)
+                return false;
+
+            Unit* jeklik = FindAliveCreature(NPC_JEKLIK);
+            if (!jeklik)
+                return false;
+
+            return !ai->HasAura("curse of tongues", jeklik);
+        }
+
+    private:
+        static const uint32 NPC_JEKLIK = 14517;
+    };
+
+
+    class JeklikShouldDrainManaTrigger : public DungeonCreatureTrigger
+    {
+    public:
+        JeklikShouldDrainManaTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "jeklik should drain mana", 1) {}
+
+        bool IsActive() override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot || bot->getClass() != CLASS_WARLOCK)
+                return false;
+
+            Unit* jeklik = FindAliveCreature(NPC_JEKLIK);
+            if (!jeklik)
+                return false;
+
+            // Only use Drain Mana if Jeklik actually has mana.
+            if (!AI_VALUE2(bool, "has mana", "current target"))
+                return false;
+
+            // Prevent repeatedly interrupting our own Drain Mana channel.
+            if (bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+                return false;
+
+            return true;
+        }
+
+    private:
+        static const uint32 NPC_JEKLIK = 14517;
+    };
+
+    class ThekalTriggerBase : public DungeonCreatureTrigger
     {
     public:
         ThekalTriggerBase(PlayerbotAI* ai, std::string name, int checkInterval = 1)
-            : Trigger(ai, name, checkInterval) {}
+            : DungeonCreatureTrigger(ai, name, checkInterval) {}
 
     protected:
         static const uint32 NPC_THEKAL  = 14509;
@@ -80,57 +286,6 @@ namespace ai
         static constexpr float FINISH_HP_PCT = 7.0f;
 
     protected:
-        Unit* FindAliveCreature(uint32 entry)
-        {
-            std::list<ObjectGuid> attackTargets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
-
-            for (ObjectGuid const& guid : attackTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            std::list<ObjectGuid> possibleTargets = AI_VALUE(std::list<ObjectGuid>, "possible targets");
-
-            for (ObjectGuid const& guid : possibleTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
-                return currentTarget;
-
-            return nullptr;
-        }
-
-        float GetHealthPct(Unit* unit)
-        {
-            if (!unit || !unit->GetMaxHealth())
-                return 0.0f;
-
-            return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
-        }
-
-        bool IsAlive(uint32 entry)
-        {
-            return FindAliveCreature(entry) != nullptr;
-        }
 
         int AliveTrioCount()
         {
@@ -236,8 +391,7 @@ namespace ai
 
         bool IsActive() override
         {
-            Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
-            return lorkhan && lorkhan->IsNonMeleeSpellCasted(true);
+            return IsInterruptableCasting(NPC_LORKHAN);
         }
     };
 
@@ -329,7 +483,8 @@ namespace ai
             creators["start jeklik fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start jeklik fight", "jeklik", 14517);};
             creators["end jeklik fight"] = [](PlayerbotAI* ai) {return new EndBossFightTrigger(ai, "end jeklik fight", "jeklik", 14517);};
             creators["jeklik casting"] = [](PlayerbotAI* ai){ return new JeklikCastingTrigger(ai);};
-            
+            creators["jeklik needs curse of tongues"] = [](PlayerbotAI* ai){return new JeklikNeedsCurseOfTonguesTrigger(ai);};
+            creators["jeklik should drain mana"] = [](PlayerbotAI* ai){return new JeklikShouldDrainManaTrigger(ai);};
 
 
             creators["start venoxis fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start venoxis fight", "venoxis", 14507);};
@@ -365,7 +520,8 @@ namespace ai
             
             creators["start hakkar fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start hakkar fight", "hakkar", 14834);};
             creators["end hakkar fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end hakkar fight", "hakkar", 14834);};
-
+            creators["hakkar aggro holder out of position"] = [](PlayerbotAI* ai){return new HakkarAggroHolderOutOfPositionTrigger(ai);};
+            creators["hakkar mind control target needs cc"] = [](PlayerbotAI* ai){return new HakkarMindControlTargetNeedsCcTrigger(ai);};
             // Hazards and Proximity triggers
             creators["venoxis poison cloud"] = [](PlayerbotAI* ai) {return new CloseToGameObjectHazardTrigger(ai, "venoxis poison cloud", 179905, 5.0f, 60);};
             creators["venoxis too close"] = [](PlayerbotAI* ai) {return new  CloseToCreatureTrigger(ai, "venoxis too close", 14507, 30.0f);};

@@ -77,6 +77,18 @@ void HighPriestessJeklikFightStrategy::InitCombatTriggers(std::list<TriggerNode*
     triggers.push_back(new TriggerNode(
         "jeklik casting",
         NextAction::array(0, new NextAction("interrupt jeklik", 300.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+    "jeklik needs curse of tongues",
+    NextAction::array(0,
+        new NextAction("curse of tongues", 95.0f),
+        NULL)));
+
+    triggers.push_back(new TriggerNode(
+    "jeklik should drain mana",
+    NextAction::array(0,
+        new NextAction("drain mana", 90.0f),
+        NULL)));
 }
 
 
@@ -373,7 +385,16 @@ void JindoTheHexxerFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& 
 
 void HakkarFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific combat triggers
+    // If Hakkar switches aggro, the current aggro holder pulls him back
+    // to the fixed tank position to reduce raid chaos.
+    triggers.push_back(new TriggerNode(
+        "hakkar aggro holder out of position",
+        NextAction::array(0, new NextAction("move hakkar to tank position", 300.0f), NULL)));
+
+    // Druids, mages and warlocks control Hakkar mind-controlled raid members.
+    triggers.push_back(new TriggerNode(
+        "hakkar mind control target needs cc",
+        NextAction::array(0, new NextAction("cc hakkar mind control target", 290.0f), NULL)));
 }
 
 void HakkarFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -392,7 +413,13 @@ void HakkarFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 
 void HakkarFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific reaction triggers
+    triggers.push_back(new TriggerNode(
+        "hakkar mind control target needs cc",
+        NextAction::array(0, new NextAction("cc hakkar mind control target", 300.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "hakkar aggro holder out of position",
+        NextAction::array(0, new NextAction("move hakkar to tank position", 290.0f), NULL)));
 }
 
 void HakkarFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)

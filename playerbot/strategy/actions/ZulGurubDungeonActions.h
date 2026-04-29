@@ -29,6 +29,159 @@ namespace ai
         UseMudskunkLureAction(PlayerbotAI* ai) : UseItemIdAction(ai, "use mudskunk lure") { qualifier = "{19974,entry filter::{gos close,zg water nodes}}"; }
     };
 
+        class HakkarActionBase : public RaidIconActionBase
+    {
+    public:
+        HakkarActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
+
+    protected:
+        static const uint32 NPC_HAKKAR = 14834;
+
+        // TODO: replace with your desired fixed Hakkar tank position.
+        static constexpr float HAKKAR_TANK_X = -11875.0f;
+        static constexpr float HAKKAR_TANK_Y = -1660.0f;
+        static constexpr float HAKKAR_TANK_Z = 43.0f;
+
+        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
+
+    protected:
+        bool IsValidMindControlTarget(Unit* unit)
+        {
+            if (!unit || !unit->IsAlive())
+                return false;
+
+            if (unit == bot)
+                return false;
+
+            if (unit->GetTypeId() != TYPEID_PLAYER)
+                return false;
+
+            if (!bot->IsInGroup(unit))
+                return false;
+
+            if (!unit->HasAuraType(SPELL_AURA_MOD_CHARM))
+                return false;
+
+            if (ai->HasAura("polymorph", unit))
+                return false;
+
+            if (ai->HasAura("fear", unit))
+                return false;
+
+            if (ai->HasAura("entangling roots", unit))
+                return false;
+
+            return true;
+        }
+
+        Unit* FindMindControlledTargetInList(std::list<ObjectGuid> const& guids)
+        {
+            for (ObjectGuid const& guid : guids)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (IsValidMindControlTarget(unit))
+                    return unit;
+            }
+
+            return nullptr;
+        }
+
+        Unit* FindHakkarMindControlledTarget()
+        {
+            Unit* target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible attack targets"));
+            if (target)
+                return target;
+
+            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "attackers"));
+            if (target)
+                return target;
+
+            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible targets"));
+            if (target)
+                return target;
+
+            return nullptr;
+        }
+    };
+
+
+    class MoveHakkarToTankPositionAction : public MovementAction
+    {
+    public:
+        MoveHakkarToTankPositionAction(PlayerbotAI* ai)
+            : MovementAction(ai, "move hakkar to tank position") {}
+
+        bool Execute(Event& event) override
+        {
+            float distance = bot->GetDistance(
+                HAKKAR_TANK_X,
+                HAKKAR_TANK_Y,
+                HAKKAR_TANK_Z
+            );
+
+            if (distance <= HAKKAR_TANK_POSITION_RADIUS)
+                return false;
+
+            return MoveTo(
+                bot->GetMapId(),
+                HAKKAR_TANK_X,
+                HAKKAR_TANK_Y,
+                HAKKAR_TANK_Z,
+                false,
+                IsReaction(),
+                false,
+                true
+            );
+        }
+
+        bool isPossible() override
+        {
+            return MovementAction::isPossible() && ai->CanMove();
+        }
+
+    private:
+        // TODO: keep these identical to HakkarTriggerBase.
+        static constexpr float HAKKAR_TANK_X = -11875.0f;
+        static constexpr float HAKKAR_TANK_Y = -1660.0f;
+        static constexpr float HAKKAR_TANK_Z = 43.0f;
+
+        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
+    };
+
+
+    class CrowdControlHakkarMindControlAction : public HakkarActionBase
+    {
+    public:
+        CrowdControlHakkarMindControlAction(PlayerbotAI* ai)
+            : HakkarActionBase(ai, "cc hakkar mind control target") {}
+
+        bool Execute(Event& event) override
+        {
+            Unit* target = FindHakkarMindControlledTarget();
+            if (!target)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                    return ai->CastSpell("polymorph", target);
+
+                case CLASS_WARLOCK:
+                    return ai->CastSpell("fear", target);
+
+                case CLASS_DRUID:
+                    return ai->CastSpell("entangling roots", target);
+
+                default:
+                    return false;
+            }
+        }
+    };
+
     class InterruptJeklikAction : public RaidIconActionBase
     {
     public:
@@ -391,7 +544,8 @@ namespace ai
             // Hakkar
             creators["enable hakkar fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable hakkar fight strategy", "+hakkar");};
             creators["disable hakkar fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable hakkar fight strategy", "-hakkar");};
-
+            creators["move hakkar to tank position"] = [](PlayerbotAI* ai){return new MoveHakkarToTankPositionAction(ai);};
+            creators["cc hakkar mind control target"] = [](PlayerbotAI* ai){return new CrowdControlHakkarMindControlAction(ai);};
             // Avoidance and Hazards (NPC 14507 = Venoxis)
             creators["move away from venoxis"] = [](PlayerbotAI* ai){ return new MoveAwayFromCreature(ai, "move away from venoxis", 14507, 31.0f);};
             creators["move away from hazard"] = [](PlayerbotAI* ai){return new MoveAwayFromHazard(ai, "move away from hazard");};

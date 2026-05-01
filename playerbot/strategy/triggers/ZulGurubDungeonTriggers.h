@@ -57,11 +57,11 @@ namespace ai
 
     protected:
         static const uint32 NPC_HAKKAR = 14834;
+        static const uint32 SPELL_HAKKAR_MIND_CONTROL = 24327;
 
-        // TODO: replace with your desired fixed Hakkar tank position.
-        static constexpr float HAKKAR_TANK_X = -11875.0f;
-        static constexpr float HAKKAR_TANK_Y = -1660.0f;
-        static constexpr float HAKKAR_TANK_Z = 43.0f;
+        static constexpr float HAKKAR_TANK_X = -11787.0f;
+        static constexpr float HAKKAR_TANK_Y = -1667.0f;
+        static constexpr float HAKKAR_TANK_Z = 52.9f;
 
         static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
 
@@ -90,7 +90,37 @@ namespace ai
             ) <= HAKKAR_TANK_POSITION_RADIUS;
         }
 
-        bool IsValidMindControlTarget(Unit* unit)
+        bool IsSupportedCrowdControlClass()
+        {
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                case CLASS_WARLOCK:
+                case CLASS_DRUID:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        bool IsAlreadyCrowdControlled(Unit* unit)
+        {
+            if (!unit)
+                return false;
+
+            if (ai->HasAura("polymorph", unit))
+                return true;
+
+            if (ai->HasAura("fear", unit))
+                return true;
+
+            if (ai->HasAura("entangling roots", unit))
+                return true;
+
+            return false;
+        }
+
+        bool IsHakkarMindControlled(Unit* unit)
         {
             if (!unit || !unit->IsAlive())
                 return false;
@@ -104,18 +134,15 @@ namespace ai
             if (!bot->IsInGroup(unit))
                 return false;
 
-            // Hakkar MC/charm state.
-            if (!unit->HasAuraType(SPELL_AURA_MOD_CHARM))
+            return ai->HasAura(SPELL_HAKKAR_MIND_CONTROL, unit);
+        }
+
+        bool IsValidMindControlTarget(Unit* unit)
+        {
+            if (!IsHakkarMindControlled(unit))
                 return false;
 
-            // Do not spam CC if one of our intended controls is already present.
-            if (ai->HasAura("polymorph", unit))
-                return false;
-
-            if (ai->HasAura("fear", unit))
-                return false;
-
-            if (ai->HasAura("entangling roots", unit))
+            if (IsAlreadyCrowdControlled(unit))
                 return false;
 
             return true;
@@ -135,17 +162,35 @@ namespace ai
 
         Unit* FindHakkarMindControlledTarget()
         {
-            Unit* target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible attack targets"));
+            // Best source first: MC target is originally a raid member.
+            Unit* target = FindMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "nearest friendly players")
+            );
             if (target)
                 return target;
 
-            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "attackers"));
+            // Depending on core behavior, MC players may become hostile/attackable.
+            target = FindMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "possible attack targets")
+            );
             if (target)
                 return target;
 
-            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible targets"));
+            target = FindMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "attackers")
+            );
             if (target)
                 return target;
+
+            target = FindMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "possible targets")
+            );
+            if (target)
+                return target;
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (IsValidMindControlTarget(currentTarget))
+                return currentTarget;
 
             return nullptr;
         }
@@ -182,23 +227,19 @@ namespace ai
 
         bool IsActive() override
         {
-            Player* bot = ai->GetBot();
-            if (!bot)
+            if (!bot || !IsSupportedCrowdControlClass())
                 return false;
 
-            switch (bot->getClass())
-            {
-                case CLASS_MAGE:
-                case CLASS_WARLOCK:
-                case CLASS_DRUID:
-                    break;
-                default:
-                    return false;
-            }
+            // Avoid firing outside the actual Hakkar encounter.
+            if (!FindHakkar())
+                return false;
 
             return FindHakkarMindControlledTarget() != nullptr;
         }
     };
+
+
+  
 
     class JeklikCastingTrigger : public DungeonCreatureTrigger
     {

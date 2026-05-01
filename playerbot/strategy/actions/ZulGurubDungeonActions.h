@@ -29,23 +29,22 @@ namespace ai
         UseMudskunkLureAction(PlayerbotAI* ai) : UseItemIdAction(ai, "use mudskunk lure") { qualifier = "{19974,entry filter::{gos close,zg water nodes}}"; }
     };
 
-        class HakkarActionBase : public RaidIconActionBase
+    class HakkarActionBase : public RaidIconActionBase
     {
-    public:
-        HakkarActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
+    public: HakkarActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
 
     protected:
         static const uint32 NPC_HAKKAR = 14834;
+        static const uint32 SPELL_HAKKAR_MIND_CONTROL = 24327;
 
-        // TODO: replace with your desired fixed Hakkar tank position.
-        static constexpr float HAKKAR_TANK_X = -11875.0f;
-        static constexpr float HAKKAR_TANK_Y = -1660.0f;
-        static constexpr float HAKKAR_TANK_Z = 43.0f;
+        static constexpr float HAKKAR_TANK_X = -11787.0f;
+        static constexpr float HAKKAR_TANK_Y = -1667.0f;
+        static constexpr float HAKKAR_TANK_Z = 52.9f;
 
         static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
 
     protected:
-        bool IsValidMindControlTarget(Unit* unit)
+        bool IsHakkarMindControlled(Unit* unit)
         {
             if (!unit || !unit->IsAlive())
                 return false;
@@ -59,27 +58,65 @@ namespace ai
             if (!bot->IsInGroup(unit))
                 return false;
 
-            if (!unit->HasAuraType(SPELL_AURA_MOD_CHARM))
+            return ai->HasAura(SPELL_HAKKAR_MIND_CONTROL, unit);
+        }
+
+        bool IsAlreadyCrowdControlled(Unit* unit)
+        {
+            if (!unit)
                 return false;
 
             if (ai->HasAura("polymorph", unit))
-                return false;
+                return true;
 
             if (ai->HasAura("fear", unit))
-                return false;
+                return true;
 
             if (ai->HasAura("entangling roots", unit))
-                return false;
+                return true;
 
-            return true;
+            return false;
         }
 
-        Unit* FindMindControlledTargetInList(std::list<ObjectGuid> const& guids)
+        std::string GetHakkarMindControlCcSpell()
+        {
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                    return "polymorph";
+
+                case CLASS_WARLOCK:
+                    return "fear";
+
+                case CLASS_DRUID:
+                    return "entangling roots";
+
+                default:
+                    return "";
+            }
+        }
+
+        bool IsValidHakkarMindControlCcTarget(Unit* unit)
+        {
+            if (!IsHakkarMindControlled(unit))
+                return false;
+
+            if (IsAlreadyCrowdControlled(unit))
+                return false;
+
+            std::string spell = GetHakkarMindControlCcSpell();
+            if (spell.empty())
+                return false;
+
+            return ai->CanCastSpell(spell, unit, true);
+        }
+
+        Unit* FindHakkarMindControlledTargetInList(std::list<ObjectGuid> const& guids)
         {
             for (ObjectGuid const& guid : guids)
             {
                 Unit* unit = ai->GetUnit(guid);
-                if (IsValidMindControlTarget(unit))
+                if (IsValidHakkarMindControlCcTarget(unit))
                     return unit;
             }
 
@@ -88,22 +125,52 @@ namespace ai
 
         Unit* FindHakkarMindControlledTarget()
         {
-            Unit* target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible attack targets"));
+            // Best source first: the MC target is a raid member.
+            Unit* target = FindHakkarMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "nearest friendly players")
+            );
             if (target)
                 return target;
 
-            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "attackers"));
+            // Depending on the core, MC players may become attackable/hostile.
+            target = FindHakkarMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "possible attack targets")
+            );
             if (target)
                 return target;
 
-            target = FindMindControlledTargetInList(AI_VALUE(std::list<ObjectGuid>, "possible targets"));
+            target = FindHakkarMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "attackers")
+            );
             if (target)
                 return target;
+
+            target = FindHakkarMindControlledTargetInList(
+                AI_VALUE(std::list<ObjectGuid>, "possible targets")
+            );
+            if (target)
+                return target;
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (IsValidHakkarMindControlCcTarget(currentTarget))
+                return currentTarget;
 
             return nullptr;
         }
-    };
 
+        bool CrowdControlHakkarMindControlledTarget()
+        {
+            Unit* target = FindHakkarMindControlledTarget();
+            if (!target)
+                return false;
+
+            std::string spell = GetHakkarMindControlCcSpell();
+            if (spell.empty())
+                return false;
+
+            return ai->CastSpell(spell, target);
+        }
+    };
 
     class MoveHakkarToTankPositionAction : public MovementAction
     {
@@ -141,9 +208,9 @@ namespace ai
 
     private:
         // TODO: keep these identical to HakkarTriggerBase.
-        static constexpr float HAKKAR_TANK_X = -11875.0f;
-        static constexpr float HAKKAR_TANK_Y = -1660.0f;
-        static constexpr float HAKKAR_TANK_Z = 43.0f;
+        static constexpr float HAKKAR_TANK_X = -11787.0f;
+        static constexpr float HAKKAR_TANK_Y = -1667.0f;
+        static constexpr float HAKKAR_TANK_Z = 52.9f;
 
         static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
     };
@@ -157,28 +224,7 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            Unit* target = FindHakkarMindControlledTarget();
-            if (!target)
-                return false;
-
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return false;
-
-            switch (bot->getClass())
-            {
-                case CLASS_MAGE:
-                    return ai->CastSpell("polymorph", target);
-
-                case CLASS_WARLOCK:
-                    return ai->CastSpell("fear", target);
-
-                case CLASS_DRUID:
-                    return ai->CastSpell("entangling roots", target);
-
-                default:
-                    return false;
-            }
+            return CrowdControlHakkarMindControlledTarget();
         }
     };
 

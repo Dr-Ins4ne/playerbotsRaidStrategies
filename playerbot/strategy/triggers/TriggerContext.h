@@ -14,11 +14,7 @@
 #include "StuckTriggers.h"
 #include "BotStateTriggers.h"
 #include "PullTriggers.h"
-#include "OnyxiasLairDungeonTriggers.h"
-#include "MoltenCoreDungeonTriggers.h"
-#include "BlackwingLairDungeonTriggers.h"
-#include "KarazhanDungeonTriggers.h"
-#include "NaxxramasDungeonTriggers.h"
+
 #include "GlyphTriggers.h"
 #include "WorldBuffTravelTriggers.h"
 
@@ -289,7 +285,7 @@ namespace ai
 
             // Dungeon Triggers
 
-
+/*
             creators["enter karazhan"] = [](PlayerbotAI* ai) { return new KarazhanEnterDungeonTrigger(ai); };
             creators["leave karazhan"] = [](PlayerbotAI* ai) { return new KarazhanLeaveDungeonTrigger(ai); };
             creators["enter naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasEnterDungeonTrigger(ai); };
@@ -299,10 +295,6 @@ namespace ai
 
             // Dungeon Boss Triggers
 
-
-
-            creators["mc rune in sight"] = [](PlayerbotAI* ai) { return new MCRuneInSightTrigger(ai); };
-            creators["mc rune close"] = [](PlayerbotAI* ai) { return new MCRuneCloseTrigger(ai); };
 
             creators["suppression device need stealth"] = [](PlayerbotAI* ai) { return new SuppressionDeviceNeedStealthTrigger(ai); };
             creators["suppression device in sight"] = [](PlayerbotAI* ai) { return new SuppressionDeviceInSightTrigger(ai); };
@@ -323,6 +315,7 @@ namespace ai
 
             creators["start four horseman fight"] = [](PlayerbotAI* ai) { return new FourHorsemanStartFightTrigger(ai); };
             creators["end four horseman fight"] = [](PlayerbotAI* ai) { return new FourHorsemanEndFightTrigger(ai); };
+            /*
         }
     };
 };

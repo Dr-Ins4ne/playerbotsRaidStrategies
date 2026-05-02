@@ -13,14 +13,14 @@
 #include "values/ValueContext.h"
 #include "values/SharedValueContext.h"
 
-#include "triggers/MoltenCoreDungeonTriggers.h"
-#include "actions/MoltenCoreDungeonActions.h"
-#include "triggers/AhnQirajRuinsDungeonTriggers.h"
-#include "actions/AhnQirajRuinsDungeonActions.h"
-#include "triggers/ZulGurubDungeonTriggers.h"
-#include "actions/ZulGurubDungeonActions.h"
-#include "triggers/OnyxiasLairDungeonTriggers.h"
-#include "actions/OnyxiasLairDungeonActions.h"
+#include "raids/MoltenCoreDungeonTriggers.h"
+#include "raids/MoltenCoreDungeonActions.h"
+#include "raids/AhnQirajRuinsDungeonTriggers.h"
+#include "raids/AhnQirajRuinsDungeonActions.h"
+#include "raids/ZulGurubDungeonTriggers.h"
+#include "raids/ZulGurubDungeonActions.h"
+#include "raids/OnyxiasLairDungeonTriggers.h"
+#include "raids/OnyxiasLairDungeonActions.h"
 using namespace ai;
 
 AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)

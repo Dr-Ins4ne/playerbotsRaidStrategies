@@ -74,11 +74,7 @@
 #include "UseConsumableAction.h"
 #include "WorldBuffTravelActions.h"
 
-#include "OnyxiasLairDungeonActions.h"
-#include "MoltenCoreDungeonActions.h"
-#include "BlackwingLairDungeonActions.h"
-#include "KarazhanDungeonActions.h"
-#include "NaxxramasDungeonActions.h"
+
 
 namespace ai
 {
@@ -351,7 +347,7 @@ namespace ai
             creators["use id"] = [](PlayerbotAI* ai) { return new UseItemIdAction(ai); };
             creators["move to"] = [](PlayerbotAI* ai) { return new MoveToAction(ai); };
 
-
+/*
             // Dungeon Actions
             creators["enable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairEnableDungeonStrategyAction(ai); };
             creators["disable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairDisableDungeonStrategyAction(ai); };
@@ -382,6 +378,7 @@ namespace ai
 
             creators["enable four horseman fight strategy"] = [](PlayerbotAI* ai) { return new FourHorsemanEnableFightStrategyAction(ai); };
             creators["disable four horseman fight strategy"] = [](PlayerbotAI* ai) { return new FourHorsemanDisableFightStrategyAction(ai); };
+        */
         }    
     };
 };

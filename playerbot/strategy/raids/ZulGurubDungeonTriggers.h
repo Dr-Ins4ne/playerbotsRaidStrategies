@@ -6,7 +6,7 @@
 #include "../triggers/HealthTriggers.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
-#include "playerbot/strategy/actions/RaidIconActionBase.h"
+#include "RaidIconActionBase.h"
 #include <ctime>
 namespace ai
 {

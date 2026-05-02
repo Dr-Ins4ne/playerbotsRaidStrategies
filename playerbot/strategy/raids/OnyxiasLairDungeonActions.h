@@ -1,6 +1,6 @@
 #pragma once
-#include "DungeonActions.h"
-#include "ChangeStrategyAction.h"
+#include "../actions/DungeonActions.h"
+#include "../actions/ChangeStrategyAction.h"
 #include "playerbot/strategy/Action.h"
 #include "playerbot/ServerFacade.h"
 #include <vector>

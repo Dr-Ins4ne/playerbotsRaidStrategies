@@ -1,6 +1,6 @@
 #pragma once
-#include "DungeonTriggers.h"
-#include "GenericTriggers.h"
+#include "../triggers/DungeonTriggers.h"
+#include "../triggers/GenericTriggers.h"
 
 namespace ai
 {

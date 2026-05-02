@@ -1,7 +1,7 @@
 #pragma once
-#include "DungeonActions.h"
-#include "ChangeStrategyAction.h"
-#include "UseItemAction.h"
+#include "../actions/DungeonActions.h"
+#include "../actions/ChangeStrategyAction.h"
+#include "../actions/UseItemAction.h"
 
 namespace ai
 {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "DungeonActions.h"          
-#include "GenericSpellActions.h"     
-#include "MovementActions.h"
+#include "../actions/DungeonActions.h"          
+#include "../actions/GenericSpellActions.h"     
+#include "../actions/MovementActions.h"
 
 namespace ai
 {

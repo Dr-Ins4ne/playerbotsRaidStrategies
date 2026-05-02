@@ -1,11 +1,13 @@
 
 #pragma once
-#include "DungeonTriggers.h"
-#include "GenericTriggers.h"
-#include "HealthTriggers.h"
+#include "ZulGurubDungeonUtils.h"
+#include "../triggers/DungeonTriggers.h"
+#include "../triggers/GenericTriggers.h"
+#include "../triggers/HealthTriggers.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
 #include "playerbot/strategy/actions/RaidIconActionBase.h"
+#include <ctime>
 namespace ai
 {
 
@@ -56,19 +58,9 @@ namespace ai
             : DungeonCreatureTrigger(ai, name, checkInterval) {}
 
     protected:
-        static const uint32 NPC_HAKKAR = 14834;
-        static const uint32 SPELL_HAKKAR_MIND_CONTROL = 24327;
-
-        static constexpr float HAKKAR_TANK_X = -11787.0f;
-        static constexpr float HAKKAR_TANK_Y = -1667.0f;
-        static constexpr float HAKKAR_TANK_Z = 52.9f;
-
-        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
-
-    protected:
         Unit* FindHakkar()
         {
-            return FindAliveCreature(NPC_HAKKAR);
+            return ZulGurubDungeonUtils::FindHakkar(ai);
         }
 
         bool IsHakkarTargetingMe()
@@ -83,116 +75,7 @@ namespace ai
 
         bool IsAtHakkarTankPosition()
         {
-            return bot->GetDistance(
-                HAKKAR_TANK_X,
-                HAKKAR_TANK_Y,
-                HAKKAR_TANK_Z
-            ) <= HAKKAR_TANK_POSITION_RADIUS;
-        }
-
-        bool IsSupportedCrowdControlClass()
-        {
-            switch (bot->getClass())
-            {
-                case CLASS_MAGE:
-                case CLASS_WARLOCK:
-                case CLASS_DRUID:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-
-        bool IsAlreadyCrowdControlled(Unit* unit)
-        {
-            if (!unit)
-                return false;
-
-            if (ai->HasAura("polymorph", unit))
-                return true;
-
-            if (ai->HasAura("fear", unit))
-                return true;
-
-            if (ai->HasAura("entangling roots", unit))
-                return true;
-
-            return false;
-        }
-
-        bool IsHakkarMindControlled(Unit* unit)
-        {
-            if (!unit || !unit->IsAlive())
-                return false;
-
-            if (unit == bot)
-                return false;
-
-            if (unit->GetTypeId() != TYPEID_PLAYER)
-                return false;
-
-            if (!bot->IsInGroup(unit))
-                return false;
-
-            return ai->HasAura(SPELL_HAKKAR_MIND_CONTROL, unit);
-        }
-
-        bool IsValidMindControlTarget(Unit* unit)
-        {
-            if (!IsHakkarMindControlled(unit))
-                return false;
-
-            if (IsAlreadyCrowdControlled(unit))
-                return false;
-
-            return true;
-        }
-
-        Unit* FindMindControlledTargetInList(std::list<ObjectGuid> const& guids)
-        {
-            for (ObjectGuid const& guid : guids)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (IsValidMindControlTarget(unit))
-                    return unit;
-            }
-
-            return nullptr;
-        }
-
-        Unit* FindHakkarMindControlledTarget()
-        {
-            // Best source first: MC target is originally a raid member.
-            Unit* target = FindMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "nearest friendly players")
-            );
-            if (target)
-                return target;
-
-            // Depending on core behavior, MC players may become hostile/attackable.
-            target = FindMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "possible attack targets")
-            );
-            if (target)
-                return target;
-
-            target = FindMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "attackers")
-            );
-            if (target)
-                return target;
-
-            target = FindMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "possible targets")
-            );
-            if (target)
-                return target;
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (IsValidMindControlTarget(currentTarget))
-                return currentTarget;
-
-            return nullptr;
+            return ZulGurubDungeonUtils::IsAtHakkarTankPosition(bot);
         }
     };
 
@@ -227,19 +110,88 @@ namespace ai
 
         bool IsActive() override
         {
-            if (!bot || !IsSupportedCrowdControlClass())
+            if (!bot)
                 return false;
 
-            // Avoid firing outside the actual Hakkar encounter.
             if (!FindHakkar())
                 return false;
 
-            return FindHakkarMindControlledTarget() != nullptr;
+            return ZulGurubDungeonUtils::CanCcMindControlledTarget(ai, bot);
         }
     };
 
+    class HakkarMindControlledPlayerAttackingMeTrigger : public HakkarTriggerBase
+    {
+    public:
+        HakkarMindControlledPlayerAttackingMeTrigger(PlayerbotAI* ai)
+            : HakkarTriggerBase(ai, "hakkar mind controlled player attacking me", 1),
+            lastFleeTime(0) {}
 
-  
+        bool IsActive() override
+        {
+            if (!bot || !bot->IsInWorld() || bot->IsBeingTeleported())
+                return false;
+
+            if (!ai->CanMove())
+                return false;
+
+            // Only during Hakkar fight.
+            Unit* hakkar = FindHakkar();
+            if (!hakkar)
+                return false;
+
+            // Important: if I am Hakkar's aggro target, do NOT flee.
+            // The tank/aggro-holder should stay at the tank position.
+            if (IsHakkarTargetingMe())
+                return false;
+
+            // Small throttle so we do not spam flee every tick.
+            time_t now = time(0);
+            if (lastFleeTime && now < lastFleeTime + 3)
+                return false;
+
+            std::list<ObjectGuid> attackers = AI_VALUE(std::list<ObjectGuid>, "attackers");
+
+            for (ObjectGuid const& guid : attackers)
+            {
+                Unit* attacker = ai->GetUnit(guid);
+                if (!IsMindControlledPlayerAttackingMe(attacker))
+                    continue;
+
+                lastFleeTime = now;
+                return true;
+            }
+
+            return false;
+        }
+
+    private:
+        bool IsMindControlledPlayerAttackingMe(Unit* unit)
+        {
+            if (!unit)
+                return false;
+
+            if (!DungeonTargetHelper::IsAliveGroupPlayer(bot, unit, true))
+                return false;
+
+            if (!DungeonTargetHelper::HasAura(ai, unit, ZulGurubDungeonUtils::SPELL_HAKKAR_MIND_CONTROL))
+                return false;
+
+            // Melee / active victim case.
+            Unit* victim = unit->GetVictim();
+            if (victim && victim->GetObjectGuid() == bot->GetObjectGuid())
+                return true;
+
+            // Spell/ranged targeting case, if available in your core.
+            if (unit->HasTarget(bot->GetObjectGuid()))
+                return true;
+
+            return false;
+        }
+
+    private:
+        time_t lastFleeTime;
+    };
 
     class JeklikCastingTrigger : public DungeonCreatureTrigger
     {
@@ -563,6 +515,8 @@ namespace ai
             creators["end hakkar fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end hakkar fight", "hakkar", 14834);};
             creators["hakkar aggro holder out of position"] = [](PlayerbotAI* ai){return new HakkarAggroHolderOutOfPositionTrigger(ai);};
             creators["hakkar mind control target needs cc"] = [](PlayerbotAI* ai){return new HakkarMindControlTargetNeedsCcTrigger(ai);};
+            creators["hakkar mind controlled player attacking me"] = [](PlayerbotAI* ai){return new HakkarMindControlledPlayerAttackingMeTrigger(ai);};
+            
             // Hazards and Proximity triggers
             creators["venoxis poison cloud"] = [](PlayerbotAI* ai) {return new CloseToGameObjectHazardTrigger(ai, "venoxis poison cloud", 179905, 5.0f, 60);};
             creators["venoxis too close"] = [](PlayerbotAI* ai) {return new  CloseToCreatureTrigger(ai, "venoxis too close", 14507, 30.0f);};

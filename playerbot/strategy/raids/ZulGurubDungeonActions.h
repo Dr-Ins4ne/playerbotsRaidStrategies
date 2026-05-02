@@ -1,10 +1,11 @@
 #pragma once
-#include "DungeonActions.h"
-#include "ChangeStrategyAction.h"
-#include "UseItemAction.h"
+#include "../actions/DungeonActions.h"
+#include "../actions/ChangeStrategyAction.h"
+#include "../actions/UseItemAction.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
 #include "RaidIconActionBase.h"
+#include "ZulGurubDungeonUtils.h"
 
 namespace ai
 {
@@ -29,148 +30,7 @@ namespace ai
         UseMudskunkLureAction(PlayerbotAI* ai) : UseItemIdAction(ai, "use mudskunk lure") { qualifier = "{19974,entry filter::{gos close,zg water nodes}}"; }
     };
 
-    class HakkarActionBase : public RaidIconActionBase
-    {
-    public: HakkarActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
 
-    protected:
-        static const uint32 NPC_HAKKAR = 14834;
-        static const uint32 SPELL_HAKKAR_MIND_CONTROL = 24327;
-
-        static constexpr float HAKKAR_TANK_X = -11787.0f;
-        static constexpr float HAKKAR_TANK_Y = -1667.0f;
-        static constexpr float HAKKAR_TANK_Z = 52.9f;
-
-        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
-
-    protected:
-        bool IsHakkarMindControlled(Unit* unit)
-        {
-            if (!unit || !unit->IsAlive())
-                return false;
-
-            if (unit == bot)
-                return false;
-
-            if (unit->GetTypeId() != TYPEID_PLAYER)
-                return false;
-
-            if (!bot->IsInGroup(unit))
-                return false;
-
-            return ai->HasAura(SPELL_HAKKAR_MIND_CONTROL, unit);
-        }
-
-        bool IsAlreadyCrowdControlled(Unit* unit)
-        {
-            if (!unit)
-                return false;
-
-            if (ai->HasAura("polymorph", unit))
-                return true;
-
-            if (ai->HasAura("fear", unit))
-                return true;
-
-            if (ai->HasAura("entangling roots", unit))
-                return true;
-
-            return false;
-        }
-
-        std::string GetHakkarMindControlCcSpell()
-        {
-            switch (bot->getClass())
-            {
-                case CLASS_MAGE:
-                    return "polymorph";
-
-                case CLASS_WARLOCK:
-                    return "fear";
-
-                case CLASS_DRUID:
-                    return "entangling roots";
-
-                default:
-                    return "";
-            }
-        }
-
-        bool IsValidHakkarMindControlCcTarget(Unit* unit)
-        {
-            if (!IsHakkarMindControlled(unit))
-                return false;
-
-            if (IsAlreadyCrowdControlled(unit))
-                return false;
-
-            std::string spell = GetHakkarMindControlCcSpell();
-            if (spell.empty())
-                return false;
-
-            return ai->CanCastSpell(spell, unit, true);
-        }
-
-        Unit* FindHakkarMindControlledTargetInList(std::list<ObjectGuid> const& guids)
-        {
-            for (ObjectGuid const& guid : guids)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (IsValidHakkarMindControlCcTarget(unit))
-                    return unit;
-            }
-
-            return nullptr;
-        }
-
-        Unit* FindHakkarMindControlledTarget()
-        {
-            // Best source first: the MC target is a raid member.
-            Unit* target = FindHakkarMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "nearest friendly players")
-            );
-            if (target)
-                return target;
-
-            // Depending on the core, MC players may become attackable/hostile.
-            target = FindHakkarMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "possible attack targets")
-            );
-            if (target)
-                return target;
-
-            target = FindHakkarMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "attackers")
-            );
-            if (target)
-                return target;
-
-            target = FindHakkarMindControlledTargetInList(
-                AI_VALUE(std::list<ObjectGuid>, "possible targets")
-            );
-            if (target)
-                return target;
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (IsValidHakkarMindControlCcTarget(currentTarget))
-                return currentTarget;
-
-            return nullptr;
-        }
-
-        bool CrowdControlHakkarMindControlledTarget()
-        {
-            Unit* target = FindHakkarMindControlledTarget();
-            if (!target)
-                return false;
-
-            std::string spell = GetHakkarMindControlCcSpell();
-            if (spell.empty())
-                return false;
-
-            return ai->CastSpell(spell, target);
-        }
-    };
 
     class MoveHakkarToTankPositionAction : public MovementAction
     {
@@ -180,20 +40,14 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            float distance = bot->GetDistance(
-                HAKKAR_TANK_X,
-                HAKKAR_TANK_Y,
-                HAKKAR_TANK_Z
-            );
-
-            if (distance <= HAKKAR_TANK_POSITION_RADIUS)
+            if (ZulGurubDungeonUtils::IsAtHakkarTankPosition(bot))
                 return false;
 
             return MoveTo(
                 bot->GetMapId(),
-                HAKKAR_TANK_X,
-                HAKKAR_TANK_Y,
-                HAKKAR_TANK_Z,
+                ZulGurubDungeonUtils::HAKKAR_TANK_X,
+                ZulGurubDungeonUtils::HAKKAR_TANK_Y,
+                ZulGurubDungeonUtils::HAKKAR_TANK_Z,
                 false,
                 IsReaction(),
                 false,
@@ -205,26 +59,48 @@ namespace ai
         {
             return MovementAction::isPossible() && ai->CanMove();
         }
-
-    private:
-        // TODO: keep these identical to HakkarTriggerBase.
-        static constexpr float HAKKAR_TANK_X = -11787.0f;
-        static constexpr float HAKKAR_TANK_Y = -1667.0f;
-        static constexpr float HAKKAR_TANK_Z = 52.9f;
-
-        static constexpr float HAKKAR_TANK_POSITION_RADIUS = 4.0f;
     };
 
 
-    class CrowdControlHakkarMindControlAction : public HakkarActionBase
+    class CrowdControlHakkarMindControlAction : public Action
     {
     public:
         CrowdControlHakkarMindControlAction(PlayerbotAI* ai)
-            : HakkarActionBase(ai, "cc hakkar mind control target") {}
+            : Action(ai, "cc hakkar mind control target") {}
 
         bool Execute(Event& event) override
         {
-            return CrowdControlHakkarMindControlledTarget();
+            return ZulGurubDungeonUtils::CastCcOnMindControlledTarget(ai, bot);
+        }
+
+        bool isPossible() override
+        {
+            return ZulGurubDungeonUtils::CanCcMindControlledTarget(ai, bot);
+        }
+    };
+
+    
+
+    class CurseOfTonguesJeklikAction : public RaidIconActionBase
+    {
+    public:
+        CurseOfTonguesJeklikAction(PlayerbotAI* ai)
+            : RaidIconActionBase(ai, "curse of tongues jeklik") {}
+
+        bool Execute(Event& event) override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot || bot->getClass() != CLASS_WARLOCK)
+                return false;
+
+            Unit* jeklik = FindAliveCreature(14517);
+            if (!jeklik)
+                return false;
+
+            if (ai->HasAura("curse of tongues", jeklik))
+                return false;
+
+            return ai->CastSpell("curse of tongues", jeklik);
         }
     };
 
@@ -552,6 +428,7 @@ namespace ai
             creators["enable jeklik fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable jeklik fight strategy", "+jeklik");};
             creators["disable jeklik fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable jeklik fight strategy", "-jeklik");};
             creators["interrupt jeklik"] = [](PlayerbotAI* ai){return new InterruptJeklikAction(ai);};
+            creators["curse of tongues jeklik"] = [](PlayerbotAI* ai){return new CurseOfTonguesJeklikAction(ai);};
             // High Priest Venoxis (Snake)
             creators["enable venoxis fight strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "enable venoxis fight strategy", "+venoxis");};
             creators["disable venoxis fight strategy"] = [](PlayerbotAI* ai){return new ChangeAllStrategyAction(ai, "disable venoxis fight strategy", "-venoxis");};

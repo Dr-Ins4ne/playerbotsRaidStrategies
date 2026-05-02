@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DungeonActions.h"
+#include "DungeonTargetHelper.h"
+#include "../actions/DungeonActions.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
 #include <vector>
@@ -15,49 +16,12 @@ namespace ai
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            std::list<ObjectGuid> attackTargets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
-
-            for (ObjectGuid const& guid : attackTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            std::list<ObjectGuid> possibleTargets = AI_VALUE(std::list<ObjectGuid>, "possible targets");
-
-            for (ObjectGuid const& guid : possibleTargets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
-                return currentTarget;
-
-            return nullptr;
+            return DungeonTargetHelper::FindAliveCreature(ai, entry);
         }
 
         float GetHealthPct(Unit* unit)
         {
-            if (!unit || !unit->GetMaxHealth())
-                return 0.0f;
-
-            return 100.0f * float(unit->GetHealth()) / float(unit->GetMaxHealth());
+            return DungeonTargetHelper::GetHealthPct(unit);
         }
 
         bool ShouldSkipDpsRtiSelection()
@@ -87,20 +51,36 @@ namespace ai
             return true;
         }
 
-        bool SetRti(std::string rti)
+        bool SetCurrentTarget(Unit* target)
+        {
+            if (!target)
+                return false;
+
+            context->GetValue<Unit*>("current target")->Set(target);
+            bot->SetSelectionGuid(target->GetObjectGuid());
+            return true;
+        }
+
+        bool SetRti(std::string rti, Unit* target = nullptr)
         {
             Value<std::string>* value = context->GetValue<std::string>("rti");
             if (!value)
                 return false;
 
-            if (value->Get() == rti)
-                return false;
+            bool changed = false;
 
-            value->Set(rti);
+            if (value->Get() != rti)
+            {
+                value->Set(rti);
+                changed = true;
+            }
 
-            SetCurrentTargetFromRti();
+            if (target)
+                changed |= SetCurrentTarget(target);
+            else
+                changed |= SetCurrentTargetFromRti();
 
-            return true;
+            return changed;
         }
 
         Unit* GetHighestHpTarget(std::vector<Unit*> const& targets)

@@ -49,13 +49,13 @@
 #include "generic/CircleFormationStrategy.h"
 
 #include "generic/DungeonStrategy.h"
-#include "generic/OnyxiasLairDungeonStrategies.h"
-#include "generic/MoltenCoreDungeonStrategies.h"
-#include "generic/AhnQirajRuinsDungeonStrategies.h"
-#include "generic/BlackwingLairDungeonStrategies.h"
-#include "generic/KarazhanDungeonStrategies.h"
-#include "generic/NaxxramasDungeonStrategies.h"
-#include "generic/ZulGurubDungeonStrategies.h"
+#include "generic/raids/OnyxiasLairDungeonStrategies.h"
+#include "generic/raids/MoltenCoreDungeonStrategies.h"
+#include "generic/raids/AhnQirajRuinsDungeonStrategies.h"
+#include "generic/raids/BlackwingLairDungeonStrategies.h"
+#include "generic/raids/KarazhanDungeonStrategies.h"
+#include "generic/raids/NaxxramasDungeonStrategies.h"
+#include "generic/raids/ZulGurubDungeonStrategies.h"
 
 namespace ai
 {

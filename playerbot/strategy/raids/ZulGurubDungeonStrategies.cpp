@@ -420,6 +420,10 @@ void HakkarFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers
     triggers.push_back(new TriggerNode(
         "hakkar aggro holder out of position",
         NextAction::array(0, new NextAction("move hakkar to tank position", 290.0f), NULL)));
+    
+    triggers.push_back(new TriggerNode(
+        "hakkar mind controlled player attacking me",
+        NextAction::array(0, new NextAction("flee", 280.0f), NULL)));
 }
 
 void HakkarFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)

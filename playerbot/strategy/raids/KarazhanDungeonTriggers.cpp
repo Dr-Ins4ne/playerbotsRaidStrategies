@@ -1,7 +1,7 @@
 
 #include "playerbot/playerbot.h"
 #include "KarazhanDungeonTriggers.h"
-#include "GenericTriggers.h"
+
 #include "Grids/GridNotifiers.h"
 #include "Grids/GridNotifiersImpl.h"
 #include "Grids/CellImpl.h"

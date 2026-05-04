@@ -1,6 +1,6 @@
 #include "playerbot/playerbot.h"
 #include "ZulGurubDungeonStrategies.h"
-#include "DungeonMultipliers.h"
+#include "../generic/DungeonMultipliers.h"
 
 using namespace ai;
 

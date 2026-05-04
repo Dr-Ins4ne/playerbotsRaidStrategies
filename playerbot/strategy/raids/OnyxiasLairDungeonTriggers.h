@@ -1,4 +1,5 @@
 #pragma once
+
 #include "../triggers/DungeonTriggers.h"
 #include "../triggers/GenericTriggers.h"
 
@@ -17,7 +18,32 @@ namespace ai
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (currentTarget &&
+                currentTarget->IsAlive() &&
+                currentTarget->GetEntry() == entry)
+            {
+                return currentTarget;
+            }
+
+            Unit* unit = FindAliveCreatureInGuidList("possible attack targets", entry);
+            if (unit)
+                return unit;
+
+            unit = FindAliveCreatureInGuidList("attackers", entry);
+            if (unit)
+                return unit;
+
+            unit = FindAliveCreatureInGuidList("possible targets", entry);
+            if (unit)
+                return unit;
+
+            return nullptr;
+        }
+
+        Unit* FindAliveCreatureInGuidList(std::string const& valueName, uint32 entry)
+        {
+            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, valueName);
 
             for (ObjectGuid const& guid : targets)
             {
@@ -32,16 +58,37 @@ namespace ai
                     return unit;
             }
 
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
-                return currentTarget;
-
             return nullptr;
         }
 
         bool IsAlive(uint32 entry)
         {
             return FindAliveCreature(entry) != nullptr;
+        }
+
+        bool CurrentTargetIs(uint32 entry)
+        {
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+
+            return currentTarget &&
+                   currentTarget->IsAlive() &&
+                   currentTarget->GetEntry() == entry;
+        }
+
+        bool IsOnyxiaFlying()
+        {
+            Unit* onyxia = FindAliveCreature(NPC_ONYXIA);
+            if (!onyxia)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            // Simple phase-2 approximation:
+            // Onyxia is considered flying when she is significantly above the bot/raid.
+            // Adjust 8.0f if your core reports Z values differently.
+            return onyxia->GetPositionZ() > bot->GetPositionZ() + 8.0f;
         }
     };
 
@@ -80,20 +127,73 @@ namespace ai
 
         bool IsActive() override
         {
-            Unit* onyxia = FindAliveCreature(NPC_ONYXIA);
-            if (!onyxia)
-                return false;
+            return IsOnyxiaFlying();
+        }
+    };
 
+
+    class OnyxiaFlyingMeleeNeedsWhelpTargetTrigger : public OnyxiaTriggerBase
+    {
+    public:
+        OnyxiaFlyingMeleeNeedsWhelpTargetTrigger(PlayerbotAI* ai)
+            : OnyxiaTriggerBase(ai, "onyxia flying melee needs whelp target", 1) {}
+
+        bool IsActive() override
+        {
             Player* bot = ai->GetBot();
             if (!bot)
                 return false;
 
-            // Simple phase-2 approximation:
-            // Onyxia is considered flying when she is significantly above the raid.
-            // Adjust 8.0f if your map/core reports Z values differently.
-            return onyxia->GetPositionZ() > bot->GetPositionZ() + 8.0f;
+            // Healers should not be forced into DPS targeting.
+            if (ai->IsHeal(bot))
+                return false;
+
+            // Ranged DPS should keep Onyxia targeted in phase 2.
+            if (ai->IsRanged(bot))
+                return false;
+
+            if (!IsOnyxiaFlying())
+                return false;
+
+            if (!IsAlive(NPC_ONYXIAN_WHELP))
+                return false;
+
+            // Only fire if the current target is wrong.
+            return !CurrentTargetIs(NPC_ONYXIAN_WHELP);
         }
     };
+
+
+    class OnyxiaFlyingRangedNeedsOnyxiaTargetTrigger : public OnyxiaTriggerBase
+    {
+    public:
+        OnyxiaFlyingRangedNeedsOnyxiaTargetTrigger(PlayerbotAI* ai)
+            : OnyxiaTriggerBase(ai, "onyxia flying ranged needs onyxia target", 1) {}
+
+        bool IsActive() override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            // Healers should not be forced to target Onyxia.
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (!ai->IsRanged(bot))
+                return false;
+
+            if (!IsOnyxiaFlying())
+                return false;
+
+            if (!IsAlive(NPC_ONYXIA))
+                return false;
+
+            // Only fire if the current target is wrong.
+            return !CurrentTargetIs(NPC_ONYXIA);
+        }
+    };
+
 
     class OnyxiaTriggerContext : public NamedObjectContext<Trigger>
     {
@@ -137,12 +237,20 @@ namespace ai
                 return new OnyxiaFlyingTrigger(ai);
             };
 
+            creators["onyxia flying melee needs whelp target"] = [](PlayerbotAI* ai)
+            {
+                return new OnyxiaFlyingMeleeNeedsWhelpTargetTrigger(ai);
+            };
+
+            creators["onyxia flying ranged needs onyxia target"] = [](PlayerbotAI* ai)
+            {
+                return new OnyxiaFlyingRangedNeedsOnyxiaTargetTrigger(ai);
+            };
+
             creators["onyxia too close"] = [](PlayerbotAI* ai)
             {
                 return new CloseToCreatureTrigger(ai, "onyxia too close", 10184, 25.0f);
             };
-
-            
         }
     };
 }

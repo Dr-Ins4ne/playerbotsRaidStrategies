@@ -1,8 +1,13 @@
 #pragma once
+
 #include "../actions/DungeonActions.h"
 #include "../actions/ChangeStrategyAction.h"
+
 #include "playerbot/strategy/Action.h"
 #include "playerbot/ServerFacade.h"
+
+#include <list>
+#include <string>
 #include <vector>
 
 namespace ai
@@ -10,7 +15,8 @@ namespace ai
     class OnyxiaActionBase : public Action
     {
     public:
-        OnyxiaActionBase(PlayerbotAI* ai, std::string name) : Action(ai, name) {}
+        OnyxiaActionBase(PlayerbotAI* ai, std::string name)
+            : Action(ai, name) {}
 
     protected:
         static const uint32 NPC_ONYXIA = 10184;
@@ -19,24 +25,21 @@ namespace ai
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
-
-            for (ObjectGuid const& guid : targets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
-
-                if (!unit->IsAlive())
-                    continue;
-
-                if (unit->GetEntry() == entry)
-                    return unit;
-            }
-
             Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
+            if (IsValidCreature(currentTarget, entry))
                 return currentTarget;
+
+            Unit* unit = FindAliveCreatureInGuidList("possible attack targets", entry);
+            if (unit)
+                return unit;
+
+            unit = FindAliveCreatureInGuidList("attackers", entry);
+            if (unit)
+                return unit;
+
+            unit = FindAliveCreatureInGuidList("possible targets", entry);
+            if (unit)
+                return unit;
 
             return nullptr;
         }
@@ -50,33 +53,70 @@ namespace ai
             Unit* best = nullptr;
             float bestDistance = 999999.0f;
 
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, "possible attack targets");
+            FindNearestAliveCreatureInGuidList("possible attack targets", entry, best, bestDistance);
+            FindNearestAliveCreatureInGuidList("attackers", entry, best, bestDistance);
+            FindNearestAliveCreatureInGuidList("possible targets", entry, best, bestDistance);
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (IsValidCreature(currentTarget, entry))
+            {
+                float distance = sServerFacade.GetDistance2d(bot, currentTarget);
+                if (!best || distance < bestDistance)
+                {
+                    best = currentTarget;
+                    bestDistance = distance;
+                }
+            }
+
+            return best;
+        }
+
+        Unit* FindAliveCreatureInGuidList(std::string const& valueName, uint32 entry)
+        {
+            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, valueName);
 
             for (ObjectGuid const& guid : targets)
             {
                 Unit* unit = ai->GetUnit(guid);
-                if (!unit)
-                    continue;
+                if (IsValidCreature(unit, entry))
+                    return unit;
+            }
 
-                if (!unit->IsAlive())
-                    continue;
+            return nullptr;
+        }
 
-                if (unit->GetEntry() != entry)
+        void FindNearestAliveCreatureInGuidList(
+            std::string const& valueName,
+            uint32 entry,
+            Unit*& best,
+            float& bestDistance)
+        {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return;
+
+            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, valueName);
+
+            for (ObjectGuid const& guid : targets)
+            {
+                Unit* unit = ai->GetUnit(guid);
+                if (!IsValidCreature(unit, entry))
                     continue;
 
                 float distance = sServerFacade.GetDistance2d(bot, unit);
-                if (distance < bestDistance)
+                if (!best || distance < bestDistance)
                 {
-                    bestDistance = distance;
                     best = unit;
+                    bestDistance = distance;
                 }
             }
+        }
 
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (!best && currentTarget && currentTarget->IsAlive() && currentTarget->GetEntry() == entry)
-                return currentTarget;
-
-            return best;
+        bool IsValidCreature(Unit* unit, uint32 entry)
+        {
+            return unit &&
+                   unit->IsAlive() &&
+                   unit->GetEntry() == entry;
         }
 
         bool SetCurrentTarget(Unit* target)
@@ -84,8 +124,23 @@ namespace ai
             if (!target)
                 return false;
 
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (currentTarget &&
+                currentTarget->IsAlive() &&
+                currentTarget->GetObjectGuid() == target->GetObjectGuid())
+            {
+                // Important:
+                // Returning false here prevents the action from constantly
+                // consuming cycles when the bot already has the correct target.
+                return false;
+            }
+
             context->GetValue<Unit*>("current target")->Set(target);
-            ai->GetBot()->SetSelectionGuid(target->GetObjectGuid());
+            bot->SetSelectionGuid(target->GetObjectGuid());
 
             return true;
         }
@@ -125,22 +180,34 @@ namespace ai
         {
             creators["enable onyxia lair strategy"] = [](PlayerbotAI* ai)
             {
-                return new ChangeAllStrategyAction(ai, "enable onyxia lair strategy", "+onyxia lair");
+                return new ChangeAllStrategyAction(
+                    ai,
+                    "enable onyxia lair strategy",
+                    "+onyxia lair");
             };
 
             creators["disable onyxia lair strategy"] = [](PlayerbotAI* ai)
             {
-                return new ChangeAllStrategyAction(ai, "disable onyxia lair strategy", "-onyxia lair");
+                return new ChangeAllStrategyAction(
+                    ai,
+                    "disable onyxia lair strategy",
+                    "-onyxia lair");
             };
 
             creators["enable onyxia fight strategy"] = [](PlayerbotAI* ai)
             {
-                return new ChangeAllStrategyAction(ai, "enable onyxia fight strategy", "+onyxia");
+                return new ChangeAllStrategyAction(
+                    ai,
+                    "enable onyxia fight strategy",
+                    "+onyxia");
             };
 
             creators["disable onyxia fight strategy"] = [](PlayerbotAI* ai)
             {
-                return new ChangeAllStrategyAction(ai, "disable onyxia fight strategy", "-onyxia");
+                return new ChangeAllStrategyAction(
+                    ai,
+                    "disable onyxia fight strategy",
+                    "-onyxia");
             };
 
             creators["target onyxia whelp"] = [](PlayerbotAI* ai)
@@ -155,7 +222,11 @@ namespace ai
 
             creators["move away from onyxia"] = [](PlayerbotAI* ai)
             {
-                return new MoveAwayFromCreature(ai, "move away from onyxia", 10184, 30.0f);
+                return new MoveAwayFromCreature(
+                    ai,
+                    "move away from onyxia",
+                    10184,
+                    30.0f);
             };
         }
     };

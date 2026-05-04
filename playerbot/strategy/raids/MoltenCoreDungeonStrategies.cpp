@@ -1,7 +1,7 @@
 
 #include "playerbot/playerbot.h"
 #include "MoltenCoreDungeonStrategies.h"
-#include "DungeonMultipliers.h"
+#include "../generic/DungeonMultipliers.h"
 
 using namespace ai;
 
@@ -40,8 +40,8 @@ void MoltenCoreDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
         NextAction::array(0, new NextAction("enable golemagg fight strategy", 100.0f), NULL)));
     
     triggers.push_back(new TriggerNode(
-        "start majordomo executus fight",
-        NextAction::array(0, new NextAction("enable majordomo executus fight strategy", 100.0f), NULL)));
+        "start majordomo fight",
+        NextAction::array(0, new NextAction("enable majordomo fight strategy", 100.0f), NULL)));
     
     triggers.push_back(new TriggerNode(
         "start ragnaros fight",
@@ -309,7 +309,45 @@ void SulfuronHarbingerFightStrategy::InitCombatMultipliers(std::list<Multiplier*
 // Golemagg Fight Strategy
 void GolemaggFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific combat triggers
+    Player* bot = ai->GetBot();
+    if (!bot)
+        return;
+
+    // Raid icons:
+    // skull  = Golemagg
+    // cross  = Core Rager 1
+    // square = Core Rager 2
+    triggers.push_back(new TriggerNode(
+        "golemagg targets need marking",
+        NextAction::array(0, new NextAction("mark golemagg targets", 150.0f), NULL)));
+
+    // The bot currently tanking Golemagg should drag/hold him at the fixed tank position.
+    // This does not move Core Rager tanks.
+    if (ai->IsTank(bot))
+    {
+        triggers.push_back(new TriggerNode(
+            "golemagg aggro holder out of position",
+            NextAction::array(0, new NextAction("move golemagg to tank position", 140.0f), NULL)));
+    }
+
+    // DPS should stay on skull / Golemagg.
+    // Healers and tanks are skipped by the action itself too, but keeping the role check here
+    // avoids scheduling the action for roles that should not use it.
+    if (!ai->IsHeal(bot) && !ai->IsTank(bot))
+    {
+        triggers.push_back(new TriggerNode(
+            "golemagg alive",
+            NextAction::array(0, new NextAction("select golemagg dps rti", 80.0f), NULL)));
+    }
+
+    // Core Rager tanks should keep their ragers away from Golemagg.
+    // This only fires for tanks currently tanking a Core Rager.
+    if (ai->IsTank(bot))
+    {
+        triggers.push_back(new TriggerNode(
+            "golemagg rager tank too close",
+            NextAction::array(0, new NextAction("move away from golemagg", 120.0f), NULL)));
+    }
 }
 
 void GolemaggFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -334,6 +372,74 @@ void GolemaggFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& trigge
 void GolemaggFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
     // No specific combat multipliers
+}
+
+// -----------------------------------------------------------------------------
+// Majordomo Executus Fight Strategy
+// -----------------------------------------------------------------------------
+
+void MajordomoExecutusFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    Player* bot = ai->GetBot();
+    if (!bot)
+        return;
+
+    // Mark all adds:
+    // elites  -> skull/cross/star/circle
+    // healers -> moon/square/diamond/triangle
+    triggers.push_back(new TriggerNode(
+        "majordomo targets need marking",
+        NextAction::array(0, new NextAction("mark majordomo targets", 180.0f), NULL)));
+
+    // Emergency: if teleported into pit/lava, leave immediately.
+    triggers.push_back(new TriggerNode(
+        "majordomo teleported to pit",
+        NextAction::array(0, new NextAction("move out of majordomo pit", 250.0f), NULL)));
+
+    // Keep CC active on healer icons.
+    // This is allowed for healers too if they have CC, but not tanks.
+    if (!ai->IsTank(bot))
+    {
+        triggers.push_back(new TriggerNode(
+            "majordomo needs crowd control",
+            NextAction::array(0, new NextAction("cc majordomo add", 140.0f), NULL)));
+    }
+
+    // DPS should follow kill order via RTI.
+    // Tanks/healers are skipped both here and in SelectDpsRti.
+    if (!ai->IsHeal(bot) && !ai->IsTank(bot))
+    {
+        triggers.push_back(new TriggerNode(
+            "majordomo adds alive",
+            NextAction::array(0, new NextAction("select majordomo dps rti", 90.0f), NULL)));
+    }
+}
+
+void MajordomoExecutusFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end majordomo fight",
+        NextAction::array(0, new NextAction("disable majordomo fight strategy", 100.0f), NULL)));
+}
+
+void MajordomoExecutusFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end majordomo fight",
+        NextAction::array(0, new NextAction("disable majordomo fight strategy", 100.0f), NULL)));
+}
+
+void MajordomoExecutusFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    // Put pit escape here too so it can interrupt low-priority behavior immediately.
+    triggers.push_back(new TriggerNode(
+        "majordomo teleported to pit",
+        NextAction::array(0, new NextAction("move out of majordomo pit", 300.0f), NULL)));
+}
+
+void MajordomoExecutusFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
+{
+    // Intentionally empty for now.
 }
 
 // Ragnaros Fight Strategy

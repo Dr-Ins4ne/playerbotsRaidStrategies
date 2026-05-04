@@ -193,6 +193,7 @@ namespace ai
             creators["shazzrah"] = [](PlayerbotAI* ai){ return new ShazzrahFightStrategy(ai); };
             creators["sulfuron harbinger"] = [](PlayerbotAI* ai){ return new SulfuronHarbingerFightStrategy(ai); };
             creators["golemagg"] = [](PlayerbotAI* ai){ return new GolemaggFightStrategy(ai); };
+            creators["majordomo"] = [](PlayerbotAI* ai){ return new MajordomoExecutusFightStrategy(ai); };
             creators["ragnaros"] = [](PlayerbotAI* ai){ return new RagnarosFightStrategy(ai); };
 
             creators["kurinaxx"] = [](PlayerbotAI* ai){ return new KurinnaxxFightStrategy(ai); };

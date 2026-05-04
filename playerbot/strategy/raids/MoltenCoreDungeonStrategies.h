@@ -133,7 +133,7 @@ namespace ai
     {
     public:
         MajordomoExecutusFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "majordomo executus"; }
+        std::string getName() override { return "majordomo"; }
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;

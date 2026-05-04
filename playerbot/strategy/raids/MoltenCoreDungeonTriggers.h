@@ -1,7 +1,7 @@
 #pragma once
 #include "../triggers/DungeonTriggers.h"
 #include "../triggers/GenericTriggers.h"
-
+#include "../values/RtiTargetValue.h"
 namespace ai
 {
 
@@ -351,36 +351,39 @@ namespace ai
             if (!IsMajordomoEncounterActive())
                 return false;
 
-            return IsInMajordomoPit();
+            return IsInMajordomoPit() && !IsAtMajordomoPitExit();
         }
 
     private:
         bool IsInMajordomoPit()
         {
-            // TODO: Replace with measured coordinates from your server/core.
-            // The safest first version is a loose Z check plus an XY box.
-            float x = bot->GetPositionX();
-            float y = bot->GetPositionY();
-            float z = bot->GetPositionZ();
+            return bot->GetDistance(
+                MajordomoPitCenterX(),
+                MajordomoPitCenterY(),
+                MajordomoPitCenterZ()
+            ) <= MajordomoPitRadius();
+        }
 
-            bool insideBox =
-                x >= MAJORDOMO_PIT_MIN_X &&
-                x <= MAJORDOMO_PIT_MAX_X &&
-                y >= MAJORDOMO_PIT_MIN_Y &&
-                y <= MAJORDOMO_PIT_MAX_Y;
-
-            bool belowPlatform = z <= MAJORDOMO_PIT_MAX_Z;
-
-            return insideBox && belowPlatform;
+        bool IsAtMajordomoPitExit()
+        {
+            return bot->GetDistance(
+                MajordomoPitExitX(),
+                MajordomoPitExitY(),
+                MajordomoPitExitZ()
+            ) <= MajordomoPitExitRadius();
         }
 
     private:
-        // TODO: Measure and replace.
-        static constexpr float MAJORDOMO_PIT_MIN_X = 0.0f;
-        static constexpr float MAJORDOMO_PIT_MAX_X = 0.0f;
-        static constexpr float MAJORDOMO_PIT_MIN_Y = 0.0f;
-        static constexpr float MAJORDOMO_PIT_MAX_Y = 0.0f;
-        static constexpr float MAJORDOMO_PIT_MAX_Z = 0.0f;
+        static float MajordomoPitCenterX() { return 734.3f; }
+        static float MajordomoPitCenterY() { return -1176.0f; }
+        static float MajordomoPitCenterZ() { return -119.36f; }
+
+        static float MajordomoPitExitX() { return 711.7f; }
+        static float MajordomoPitExitY() { return -1180.1f; }
+        static float MajordomoPitExitZ() { return -119.3f; }
+
+        static float MajordomoPitRadius() { return 15.0f; }
+        static float MajordomoPitExitRadius() { return 3.0f; }
     };
 
     class MoltenCoreTriggerContext : public NamedObjectContext<Trigger>

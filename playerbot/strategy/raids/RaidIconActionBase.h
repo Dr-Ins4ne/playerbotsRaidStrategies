@@ -1,6 +1,7 @@
 #pragma once
 
-#include "DungeonActions.h"
+#include "../actions/DungeonActions.h"
+#include "DungeonTargetHelper.h"
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
 
@@ -20,7 +21,7 @@ namespace ai
 
     protected:
         // ---------------------------------------------------------------------
-        // Creature lookup
+        // Generic creature / unit wrappers
         // ---------------------------------------------------------------------
 
         Unit* FindAliveCreature(uint32 entry)
@@ -30,17 +31,7 @@ namespace ai
 
         std::vector<Unit*> FindAliveCreatures(uint32 entry)
         {
-            std::vector<Unit*> result;
-
-            AddAliveCreaturesFromGuidList("possible attack targets", entry, result);
-            AddAliveCreaturesFromGuidList("attackers", entry, result);
-            AddAliveCreaturesFromGuidList("possible targets", entry, result);
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (IsAliveCreature(currentTarget, entry) && !ContainsUnit(result, currentTarget))
-                result.push_back(currentTarget);
-
-            return result;
+            return DungeonTargetHelper::FindAliveCreatures(ai, entry);
         }
 
         float GetHealthPct(Unit* unit)
@@ -50,51 +41,22 @@ namespace ai
 
         Unit* GetHighestHpTarget(std::vector<Unit*> const& targets)
         {
-            Unit* best = nullptr;
-            float bestHp = -1.0f;
-
-            for (Unit* target : targets)
-            {
-                if (!target || !target->IsAlive())
-                    continue;
-
-                float hp = GetHealthPct(target);
-                if (hp > bestHp)
-                {
-                    bestHp = hp;
-                    best = target;
-                }
-            }
-
-            return best;
+            return DungeonTargetHelper::GetHighestHpTarget(targets);
         }
 
         Unit* GetHighestHpTargetAbove(std::vector<Unit*> const& targets, float threshold)
         {
-            Unit* best = nullptr;
-            float bestHp = -1.0f;
-
-            for (Unit* target : targets)
-            {
-                if (!target || !target->IsAlive())
-                    continue;
-
-                float hp = GetHealthPct(target);
-                if (hp <= threshold)
-                    continue;
-
-                if (hp > bestHp)
-                {
-                    bestHp = hp;
-                    best = target;
-                }
-            }
-
-            return best;
+            return DungeonTargetHelper::GetHighestHpTargetAbove(targets, threshold);
         }
 
+        bool HasAnyAura(Unit* target, std::vector<std::string> const& auraNames)
+        {
+            return DungeonTargetHelper::HasAnyAura(ai, target, auraNames);
+        }
+
+
         // ---------------------------------------------------------------------
-        // RTI / raid icon helpers
+        // RTI / raid-icon target helpers
         // ---------------------------------------------------------------------
 
         bool ShouldSkipDpsRtiSelection()
@@ -156,6 +118,10 @@ namespace ai
             if (!target)
                 return false;
 
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
             Group* group = bot->GetGroup();
             if (!group)
                 return false;
@@ -202,7 +168,8 @@ namespace ai
             std::vector<Unit*> const& targets)
         {
             bool changed = false;
-            size_t count = std::min(icons.size(), targets.size());
+
+            size_t count = icons.size() < targets.size() ? icons.size() : targets.size();
 
             for (size_t i = 0; i < count; ++i)
             {
@@ -220,6 +187,10 @@ namespace ai
         bool HasCorrectTargetIcon(std::string const& icon, Unit* target)
         {
             if (!target)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
                 return false;
 
             Group* group = bot->GetGroup();
@@ -243,6 +214,10 @@ namespace ai
 
         Unit* GetTargetIconUnit(std::string const& icon)
         {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return nullptr;
+
             Group* group = bot->GetGroup();
             if (!group)
                 return nullptr;
@@ -253,7 +228,7 @@ namespace ai
 
             ObjectGuid guid = group->GetTargetIcon(index);
 
-            // Do not check "if (!guid)" here.
+            // Do not use "if (!guid)" here.
             // Some ObjectGuid implementations do not define operator!.
             return ai->GetUnit(guid);
         }
@@ -309,23 +284,10 @@ namespace ai
             return false;
         }
 
+
         // ---------------------------------------------------------------------
         // Generic aura / CC helpers
         // ---------------------------------------------------------------------
-
-        bool HasAnyAura(Unit* target, std::vector<std::string> const& auraNames)
-        {
-            if (!target)
-                return false;
-
-            for (std::string const& auraName : auraNames)
-            {
-                if (ai->HasAura(auraName, target))
-                    return true;
-            }
-
-            return false;
-        }
 
         Unit* FindFirstAliveIconTargetWithoutAuras(
             std::vector<std::string> const& icons,
@@ -430,51 +392,6 @@ namespace ai
         bool TryCommonCrowdControl(Unit* target)
         {
             return TryCastAnyOnUnit(GetCommonCrowdControlSpells(), target);
-        }
-
-    private:
-        bool IsAliveCreature(Unit* unit, uint32 entry)
-        {
-            return unit &&
-                   unit->IsAlive() &&
-                   unit->GetEntry() == entry;
-        }
-
-        bool ContainsUnit(std::vector<Unit*> const& units, Unit* unit)
-        {
-            if (!unit)
-                return false;
-
-            for (Unit* existing : units)
-            {
-                if (existing &&
-                    existing->GetObjectGuid() == unit->GetObjectGuid())
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        void AddAliveCreaturesFromGuidList(
-            std::string const& valueName,
-            uint32 entry,
-            std::vector<Unit*>& result)
-        {
-            std::list<ObjectGuid> guids = AI_VALUE(std::list<ObjectGuid>, valueName);
-
-            for (ObjectGuid const& guid : guids)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!IsAliveCreature(unit, entry))
-                    continue;
-
-                if (ContainsUnit(result, unit))
-                    continue;
-
-                result.push_back(unit);
-            }
         }
     };
 }

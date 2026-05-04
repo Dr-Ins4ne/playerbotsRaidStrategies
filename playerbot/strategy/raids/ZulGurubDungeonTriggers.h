@@ -319,8 +319,10 @@ namespace ai
 
         bool IsActive() override
         {
-            Group* group = bot->GetGroup();
-            if (!group)
+            if (!bot)
+                return false;
+
+            if (!bot->GetGroup())
                 return false;
 
             if (bot->InBattleGround())
@@ -334,32 +336,19 @@ namespace ai
             if (!lorkhan && !zath && !thekal && !tiger)
                 return false;
 
-            if (lorkhan && !HasCorrectIcon(group, "skull", lorkhan))
+            if (lorkhan && !DungeonTargetHelper::HasCorrectTargetIcon(ai, bot, "skull", lorkhan))
                 return true;
 
-            if (zath && !HasCorrectIcon(group, "cross", zath))
+            if (zath && !DungeonTargetHelper::HasCorrectTargetIcon(ai, bot, "cross", zath))
                 return true;
 
-            if (thekal && !HasCorrectIcon(group, "square", thekal))
+            if (thekal && !DungeonTargetHelper::HasCorrectTargetIcon(ai, bot, "square", thekal))
                 return true;
 
-            if (tiger && !HasCorrectIcon(group, "triangle", tiger))
+            if (tiger && !DungeonTargetHelper::HasCorrectTargetIcon(ai, bot, "triangle", tiger))
                 return true;
 
             return false;
-        }
-
-    private:
-        bool HasCorrectIcon(Group* group, std::string icon, Unit* unit)
-        {
-            if (!group || !unit)
-                return false;
-
-            int index = RtiTargetValue::GetRtiIndex(icon);
-            if (index < 0)
-                return false;
-
-            return group->GetTargetIcon(index) == unit->GetObjectGuid();
         }
     };
 

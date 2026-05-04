@@ -275,6 +275,9 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            if (IsAtMajordomoPitExit())
+                return false;
+
             return MoveTo(
                 bot->GetMapId(),
                 MajordomoPitExitX(),
@@ -293,11 +296,24 @@ namespace ai
         }
 
     private:
-        // TODO:
-        // Replace these with measured safe ramp/exit coordinates from .gps.
-        static float MajordomoPitExitX() { return 0.0f; }
-        static float MajordomoPitExitY() { return 0.0f; }
-        static float MajordomoPitExitZ() { return 0.0f; }
+        bool IsAtMajordomoPitExit()
+        {
+            if (!bot)
+                return false;
+
+            return bot->GetDistance(
+                MajordomoPitExitX(),
+                MajordomoPitExitY(),
+                MajordomoPitExitZ()
+            ) <= MajordomoPitExitRadius();
+        }
+
+    private:
+        static float MajordomoPitExitX() { return 711.7f; }
+        static float MajordomoPitExitY() { return -1180.1f; }
+        static float MajordomoPitExitZ() { return -119.3f; }
+
+        static float MajordomoPitExitRadius() { return 3.0f; }
     };
 
 

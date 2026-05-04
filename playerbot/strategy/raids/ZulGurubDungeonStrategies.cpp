@@ -262,34 +262,51 @@ void GahzrankaFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multi
 // High Priest Thekal Fight Strategy
 void HighPriestThekalFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Keep raid icons updated.
     triggers.push_back(new TriggerNode(
         "thekal targets need marking",
-        NextAction::array(0, new NextAction("mark thekal targets", 300.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "lorkhan casting",
-        NextAction::array(0, new NextAction("interrupt lorkhan", 290.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "lorkhan needs curse of tongues",
-        NextAction::array(0, new NextAction("curse of tongues lorkhan", 260.0f), NULL)));
+        NextAction::array(0,
+            new NextAction("mark thekal targets", 100.0f),
+            NULL)));
 
     triggers.push_back(new TriggerNode(
         "thekal tiger alive",
-        NextAction::array(0, new NextAction("select thekal tiger rti", 220.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "thekal trio broken",
-        NextAction::array(0, new NextAction("select finish thekal rti", 215.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "thekal trio ready to finish",
-        NextAction::array(0, new NextAction("select finish thekal rti", 210.0f), NULL)));
+        NextAction::array(0,
+            new NextAction("select thekal tank rti", 99.0f),
+            new NextAction("select thekal tiger rti", 98.0f),
+            NULL)));
 
     triggers.push_back(new TriggerNode(
         "thekal trio needs balance",
-        NextAction::array(0, new NextAction("select balanced thekal rti", 120.0f), NULL)));
+        NextAction::array(0,
+            new NextAction("select thekal tank rti", 99.0f),
+            new NextAction("select balanced thekal rti", 98.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "thekal trio ready to finish",
+        NextAction::array(0,
+            new NextAction("select thekal tank rti", 99.0f),
+            new NextAction("select finish thekal rti", 98.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "thekal trio broken",
+        NextAction::array(0,
+            new NextAction("select thekal tank rti", 99.0f),
+            new NextAction("select finish thekal rti", 98.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "lorkhan casting",
+        NextAction::array(0,
+            new NextAction("interrupt lorkhan", 100.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "lorkhan needs curse of tongues",
+        NextAction::array(0,
+            new NextAction("curse of tongues lorkhan", 90.0f),
+            NULL)));
 }
 
 void HighPriestThekalFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

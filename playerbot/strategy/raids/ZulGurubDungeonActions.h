@@ -182,6 +182,60 @@ namespace ai
             }
         }
 
+        bool IsThekalTankTarget(Unit* unit)
+        {
+            if (!unit || !unit->IsAlive())
+                return false;
+
+            switch (unit->GetEntry())
+            {
+                case NPC_TIGER:
+                case NPC_THEKAL:
+                case NPC_ZATH:
+                    return true;
+
+                case NPC_LORKHAN:
+                default:
+                    return false;
+            }
+        }
+
+        Unit* GetPreferredThekalTankTarget()
+        {
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (IsThekalTankTarget(currentTarget))
+                return currentTarget;
+
+            Unit* tiger = FindAliveCreature(NPC_TIGER);
+            if (tiger)
+                return tiger;
+
+            Unit* thekal = FindAliveCreature(NPC_THEKAL);
+            if (thekal)
+                return thekal;
+
+            Unit* zath = FindAliveCreature(NPC_ZATH);
+            if (zath)
+                return zath;
+
+            return nullptr;
+        }
+
+        bool SelectOwnRti(std::string const& icon, Unit* target)
+        {
+            if (!target)
+                return false;
+
+            if (icon == "none")
+                return false;
+
+            bool changed = false;
+            changed |= SetTargetIcon(icon, target);
+            changed |= SetRti(icon);
+
+            return changed;
+        }
+
         bool IsTrioReadyToFinish()
         {
             Unit* thekal  = FindAliveCreature(NPC_THEKAL);
@@ -197,6 +251,34 @@ namespace ai
         }
     };
 
+    class SelectThekalTankRtiAction : public ThekalRtiActionBase
+    {
+    public:
+        SelectThekalTankRtiAction(PlayerbotAI* ai)
+            : ThekalRtiActionBase(ai, "select thekal tank rti") {}
+
+        bool Execute(Event& event) override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            if (!ai->IsTank(bot))
+                return false;
+
+            Unit* target = GetPreferredThekalTankTarget();
+            if (!target)
+                return false;
+
+            // Hard safety: tanks should never intentionally select Lor'Khan.
+            if (target->GetEntry() == NPC_LORKHAN)
+                return false;
+
+            std::string icon = GetIconForUnit(target);
+            return SelectOwnRti(icon, target);
+        }
+    };
+
     class MarkThekalTargetsAction : public ThekalRtiActionBase
     {
     public:
@@ -205,26 +287,12 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            bool marked = false;
-
-            Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
-            Unit* zath    = FindAliveCreature(NPC_ZATH);
-            Unit* thekal  = FindAliveCreature(NPC_THEKAL);
-            Unit* tiger   = FindAliveCreature(NPC_TIGER);
-
-            if (lorkhan)
-                marked |= SetTargetIcon("skull", lorkhan);
-
-            if (zath)
-                marked |= SetTargetIcon("cross", zath);
-
-            if (thekal)
-                marked |= SetTargetIcon("square", thekal);
-
-            if (tiger)
-                marked |= SetTargetIcon("triangle", tiger);
-
-            return marked;
+            return SetTargetIconsByEntry({
+                {"skull",    NPC_LORKHAN},
+                {"cross",    NPC_ZATH},
+                {"square",   NPC_THEKAL},
+                {"triangle", NPC_TIGER}
+            });
         }
     };
 
@@ -236,18 +304,7 @@ namespace ai
 
         bool Execute(Event& event) override
         {
-            if (ShouldSkipDpsRtiSelection())
-                return false;
-
-            Unit* tiger = FindAliveCreature(NPC_TIGER);
-            if (!tiger)
-                return false;
-
-            bool changed = false;
-            changed |= SetTargetIcon("triangle", tiger);
-            changed |= SetRti("triangle");
-
-            return changed;
+            return SelectDpsRti("triangle", NPC_TIGER);
         }
     };
 
@@ -260,6 +317,10 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
             Unit* lorkhan = FindAliveCreature(NPC_LORKHAN);
             if (!lorkhan)
                 return false;
@@ -267,29 +328,72 @@ namespace ai
             if (!lorkhan->IsNonMeleeSpellCasted(true))
                 return false;
 
-            if (ai->CastSpell("kick", lorkhan))
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                    return TryCastOnUnit("counterspell", lorkhan);
+
+                case CLASS_ROGUE:
+                    return TryRogueInterruptLorkhan(lorkhan);
+
+                case CLASS_WARRIOR:
+                    if (TryCastOnUnit("pummel", lorkhan))
+                        return true;
+
+                    return TryCastOnUnit("shield bash", lorkhan);
+
+                case CLASS_SHAMAN:
+                    return TryCastOnUnit("earth shock", lorkhan);
+
+                case CLASS_WARLOCK:
+                    return TryCastOnUnit("fear", lorkhan);
+
+                case CLASS_PALADIN:
+                    return TryCastOnUnit("hammer of justice", lorkhan);
+
+                // Important:
+                // Druids should not root Lor'Khan.
+                // Do not cast entangling roots here.
+                case CLASS_DRUID:
+                    return false;
+
+                default:
+                    return false;
+            }
+        }
+        
+    private:
+        bool TryRogueInterruptLorkhan(Unit* lorkhan)
+        {
+            if (!lorkhan)
+                return false;
+
+            // Primary rogue interrupt.
+            if (TryCastOnUnit("kick", lorkhan))
                 return true;
 
-            if (ai->CastSpell("counterspell", lorkhan))
-                return true;
+            // Finisher stun fallback.
+            // Only try Kidney Shot if Lor'Khan is the current combo-point target.
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (currentTarget &&
+                currentTarget->GetObjectGuid() == lorkhan->GetObjectGuid())
+            {
+                uint8 comboPoints = AI_VALUE2(uint8, "combo", "current target");
+                if (comboPoints > 0)
+                {
+                    if (TryCastOnUnit("kidney shot", lorkhan))
+                        return true;
+                }
+            }
 
-            if (ai->CastSpell("pummel", lorkhan))
-                return true;
-
-            if (ai->CastSpell("shield bash", lorkhan))
-                return true;
-
-            if (ai->CastSpell("earth shock", lorkhan))
-                return true;
-
-            if (ai->CastSpell("spell lock", lorkhan))
-                return true;
-
-            if (ai->CastSpell("hammer of justice", lorkhan))
+            // Last-resort interrupt/control.
+            // Spelled "gouge", not "gauge".
+            if (TryCastOnUnit("gouge", lorkhan))
                 return true;
 
             return false;
         }
+
     };
 
 
@@ -454,7 +558,7 @@ namespace ai
             creators["select thekal tiger rti"] = [](PlayerbotAI* ai){return new SelectThekalTigerRtiAction(ai);};
             creators["select balanced thekal rti"] = [](PlayerbotAI* ai){return new SelectBalancedThekalRtiAction(ai);};
             creators["select finish thekal rti"] = [](PlayerbotAI* ai){return new SelectFinishThekalRtiAction(ai);};
-
+            creators["select thekal tank rti"] = [](PlayerbotAI* ai){return new SelectThekalTankRtiAction(ai);};
 
             // High Priestess Arlokk (Panther)
             creators["enable arlokk fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable arlokk fight strategy", "+arlokk");};

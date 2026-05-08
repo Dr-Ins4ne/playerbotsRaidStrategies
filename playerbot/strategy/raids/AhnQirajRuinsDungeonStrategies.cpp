@@ -13,13 +13,23 @@ using namespace ai;
 
 void AhnQirajRuinsDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Start Kurinnaxx fight strategy
     triggers.push_back(new TriggerNode(
         "start kurinnaxx fight",
         NextAction::array(0, new NextAction("enable kurinnaxx strategy", 100.0f), NULL)));
 
-    // (Add triggers for other AQ20 bosses here if/when you implement them)
+    triggers.push_back(new TriggerNode(
+        "start buru fight",
+        NextAction::array(0, new NextAction("enable buru strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "start ayamiss fight",
+        NextAction::array(0, new NextAction("enable ayamiss strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "start ossirian fight",
+        NextAction::array(0, new NextAction("enable ossirian strategy", 100.0f), NULL)));
 }
+
 
 void AhnQirajRuinsDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
@@ -33,28 +43,30 @@ void AhnQirajRuinsDungeonStrategy::InitDeadTriggers(std::list<TriggerNode*>& tri
 }
 
 
-// --- KurinnaxxFightStrategy Implementation ---
+
+// ------------------------------------------------------------
+// Kurinnaxx
+// ------------------------------------------------------------
 
 void KurinnaxxFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
-{/*
-    // actually there is no toxic volley
+{
     triggers.push_back(new TriggerNode(
-        "toxic volley poison aura",
-        NextAction::array(0, new NextAction("cure toxic volley poison", 90.0f), NULL))); // High priority
-*/
-    // Trigger for tank swap due to Mortal Wound stacks
-    triggers.push_back(new TriggerNode(
-        "kurinnaxx mortal wound high", // Trigger if current tank has high Mortal Wound stacks
+        "kurinnaxx mortal wound high",
         NextAction::array(0,
-            new NextAction("taunt kurinnaxx", 95.0f),       // Off-tank should taunt (very high priority)
-            new NextAction("kurinnaxx tank retreat", 90.0f), // Current tank should retreat
+            new NextAction("taunt kurinnaxx", 95.0f),
+            new NextAction("kurinnaxx tank retreat", 90.0f),
             NULL)));
+}
 
+void KurinnaxxFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "kurinnaxx sand trap close",
+        NextAction::array(0, new NextAction("move away from kurinnaxx sand trap", 100.0f), NULL)));
 }
 
 void KurinnaxxFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Trigger to disable this strategy once Kurinnaxx is defeated (bot out of combat)
     triggers.push_back(new TriggerNode(
         "end kurinnaxx fight",
         NextAction::array(0, new NextAction("disable kurinnaxx strategy", 100.0f), NULL)));
@@ -62,23 +74,133 @@ void KurinnaxxFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& trig
 
 void KurinnaxxFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Trigger to disable this strategy if the bot dies during the fight
     triggers.push_back(new TriggerNode(
         "end kurinnaxx fight",
         NextAction::array(0, new NextAction("disable kurinnaxx strategy", 100.0f), NULL)));
 }
 
-void KurinnaxxFightStrategy::InitReactionTriggers(std::list<TriggerNode*>& triggers)
+// ------------------------------------------------------------
+// Buru
+// ------------------------------------------------------------
+
+void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Immediate reaction to being caught in a Sand Trap
+    // If I am the focused/kited player, run to the nearest egg and mark it skull.
     triggers.push_back(new TriggerNode(
-        "kurinnaxx sand trap close", // Reaction-level priority, very urgent
-        NextAction::array(0, new NextAction("move away from kurinnaxx sand trap", 100.0f), NULL)));
+        "buru focused me",
+        NextAction::array(0,
+            new NextAction("move to buru egg", 100.0f),
+            new NextAction("mark nearest buru egg", 99.0f),
+            NULL)));
+
+    // Everyone else focuses the marked egg while Buru is still shell-phase.
+    triggers.push_back(new TriggerNode(
+        "buru egg available",
+        NextAction::array(0,
+            new NextAction("select buru egg", 95.0f),
+            new NextAction("attack rti target", 90.0f),
+            NULL)));
+
+    // After shell breaks, stop egg logic and burn Buru.
+    triggers.push_back(new TriggerNode(
+        "buru shell broken",
+        NextAction::array(0,
+            new NextAction("select buru boss", 100.0f),
+            new NextAction("attack rti target", 95.0f),
+            NULL)));
 }
 
-void KurinnaxxFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
+void BuruFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific combat multipliers beyond general ones for Kurinnaxx currently.
-    // You might add one if, for example, a specific role needs to prioritize a target
-    // based on a unique Kurinnaxx debuff.
+    triggers.push_back(new TriggerNode(
+        "end buru fight",
+        NextAction::array(0, new NextAction("disable buru strategy", 100.0f), NULL)));
+}
+
+void BuruFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end buru fight",
+        NextAction::array(0, new NextAction("disable buru strategy", 100.0f), NULL)));
+}
+
+// ------------------------------------------------------------
+// Ayamiss
+// ------------------------------------------------------------
+
+void AyamissFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    // Highest priority: larvae. If they reach the shrine/player, they become the real problem.
+    triggers.push_back(new TriggerNode(
+        "ayamiss larva alive",
+        NextAction::array(0,
+            new NextAction("select ayamiss larva", 100.0f),
+            new NextAction("attack rti target", 95.0f),
+            NULL)));
+
+    // Ranged can hit Ayamiss in phase 1; melee will skip until she lands below 70%.
+    triggers.push_back(new TriggerNode(
+        "ayamiss boss available",
+        NextAction::array(0,
+            new NextAction("select ayamiss boss", 80.0f),
+            new NextAction("attack rti target", 75.0f),
+            NULL)));
+
+    // Soft tank/agro rotation for poison-stinger stacks.
+    // Ayamiss is not a clean taunt-swap boss; this simply lets the stacked target drop pressure.
+    triggers.push_back(new TriggerNode(
+        "ayamiss poison stinger high",
+        NextAction::array(0,
+            new NextAction("ayamiss stinger retreat", 90.0f),
+            NULL)));
+}
+
+void AyamissFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end ayamiss fight",
+        NextAction::array(0, new NextAction("disable ayamiss strategy", 100.0f), NULL)));
+}
+
+void AyamissFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end ayamiss fight",
+        NextAction::array(0, new NextAction("disable ayamiss strategy", 100.0f), NULL)));
+}
+
+// ------------------------------------------------------------
+// Ossirian
+// ------------------------------------------------------------
+
+void OssirianFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    // If a crystal is close enough, click it immediately.
+    triggers.push_back(new TriggerNode(
+        "ossirian crystal close",
+        NextAction::array(0,
+            new NextAction("use ossirian crystal", 100.0f),
+            NULL)));
+
+    // Tank drags Ossirian to the next crystal whenever the Strength buff is active.
+    triggers.push_back(new TriggerNode(
+        "ossirian needs crystal",
+        NextAction::array(0,
+            new NextAction("move to ossirian crystal", 95.0f),
+            new NextAction("select ossirian boss", 80.0f),
+            NULL)));
+}
+
+void OssirianFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end ossirian fight",
+        NextAction::array(0, new NextAction("disable ossirian strategy", 100.0f), NULL)));
+}
+
+void OssirianFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "end ossirian fight",
+        NextAction::array(0, new NextAction("disable ossirian strategy", 100.0f), NULL)));
 }

@@ -28,4 +28,37 @@ namespace ai
         void InitReactionTriggers(std::list<TriggerNode*>& triggers) override;
         void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
     };
+
+    class BuruFightStrategy : public Strategy
+    {
+    public:
+        BuruFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "buru"; }
+
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitDeadTriggers(std::list<TriggerNode*>& triggers) override;
+    };
+
+    class AyamissFightStrategy : public Strategy
+    {
+    public:
+        AyamissFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "ayamiss"; }
+
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitDeadTriggers(std::list<TriggerNode*>& triggers) override;
+    };
+
+    class OssirianFightStrategy : public Strategy
+    {
+    public:
+        OssirianFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "ossirian"; }
+
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitDeadTriggers(std::list<TriggerNode*>& triggers) override;
+    };
 }

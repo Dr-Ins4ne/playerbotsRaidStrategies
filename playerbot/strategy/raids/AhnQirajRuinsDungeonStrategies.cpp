@@ -85,7 +85,7 @@ void KurinnaxxFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 
 void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // If I am the focused/kited player, run to the nearest egg and mark it skull.
+    // Kited player must always keep moving to the next egg.
     triggers.push_back(new TriggerNode(
         "buru focused me",
         NextAction::array(0,
@@ -93,20 +93,25 @@ void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
             new NextAction("mark nearest buru egg", 99.0f),
             NULL)));
 
-    // Everyone else focuses the marked egg while Buru is still shell-phase.
+    // Adds first.
     triggers.push_back(new TriggerNode(
-        "buru egg available",
+        "buru add alive",
         NextAction::array(0,
-            new NextAction("select buru egg", 95.0f),
-            new NextAction("attack rti target", 90.0f),
+            new NextAction("select buru add", 60.0f),
             NULL)));
 
-    // After shell breaks, stop egg logic and burn Buru.
+    // Phase 2: burn boss.
     triggers.push_back(new TriggerNode(
         "buru shell broken",
         NextAction::array(0,
-            new NextAction("select buru boss", 100.0f),
-            new NextAction("attack rti target", 95.0f),
+            new NextAction("select buru boss", 40.0f),
+            NULL)));
+
+    // Only focus eggs when no hatchling is alive.
+    triggers.push_back(new TriggerNode(
+        "buru egg available",
+        NextAction::array(0,
+            new NextAction("select buru egg", 35.0f),
             NULL)));
 }
 

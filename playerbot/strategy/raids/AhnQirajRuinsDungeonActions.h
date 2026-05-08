@@ -7,6 +7,12 @@
 #include "DungeonTargetHelper.h"
 
 #include "playerbot/ServerFacade.h"
+#include "playerbot/strategy/values/RtiTargetValue.h"
+#include "Groups/Group.h"
+
+#include <list>
+#include <string>
+#include <vector>
 
 namespace ai
 {
@@ -21,6 +27,7 @@ namespace ai
 
         static constexpr uint32 NPC_BURU_EGG = 15514;
         static constexpr uint32 NPC_HIVEZARA_LARVA = 15555;
+        static constexpr uint32 NPC_HIVEZARA_HATCHLING = 15521;
 
         static constexpr uint32 GO_OSSIRIAN_CRYSTAL = 180619;
 
@@ -175,13 +182,23 @@ namespace ai
             return best;
         }
 
+        bool IsCurrentTarget(Unit* target)
+        {
+            if (!target)
+                return false;
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            return currentTarget &&
+                   currentTarget->IsAlive() &&
+                   currentTarget->GetObjectGuid() == target->GetObjectGuid();
+        }
+
         bool SetCurrentTarget(Unit* target)
         {
             if (!target || !target->IsAlive())
                 return false;
 
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget && currentTarget->GetObjectGuid() == target->GetObjectGuid())
+            if (IsCurrentTarget(target))
                 return false;
 
             context->GetValue<Unit*>("current target")->Set(target);
@@ -191,7 +208,7 @@ namespace ai
 
         bool SelectRtiOrCurrent(std::string const& icon, Unit* target)
         {
-            if (!target)
+            if (!target || !target->IsAlive())
                 return false;
 
             bool changed = false;
@@ -199,6 +216,32 @@ namespace ai
             changed |= SetRti(icon);
             changed |= SetCurrentTarget(target);
             return changed;
+        }
+
+        bool IsBossVictimSelf(uint32 bossEntry)
+        {
+            Unit* boss = FindAliveCreature(bossEntry);
+            if (!boss)
+                return false;
+
+            Unit* victim = GetVictim(boss);
+            return victim && victim->GetObjectGuid() == bot->GetObjectGuid();
+        }
+
+        bool IsBuruFocusedOnMe()
+        {
+            return IsBossVictimSelf(AQ20::NPC_BURU);
+        }
+
+        bool IsBuruShellBroken()
+        {
+            Unit* boss = FindAliveCreature(AQ20::NPC_BURU);
+            return boss && GetHealthPct(boss) <= 20.0f;
+        }
+
+        bool HasAliveCreature(uint32 entry)
+        {
+            return FindAliveCreature(entry) != nullptr;
         }
     };
 
@@ -330,7 +373,7 @@ namespace ai
             if (!egg || !bot->GetGroup())
                 return false;
 
-            int index = RtiTargetValue::GetRtiIndex("skull");
+            int index = RtiTargetValue::GetRtiIndex("cross");
             if (index < 0)
                 return false;
 
@@ -340,9 +383,6 @@ namespace ai
             bot->GetGroup()->SetTargetIcon(index, bot->GetObjectGuid(), egg->GetObjectGuid());
 #endif
 
-            context->GetValue<std::string>("rti")->Set("skull");
-            context->GetValue<Unit*>("current target")->Set(egg);
-            bot->SetSelectionGuid(egg->GetObjectGuid());
             return true;
         }
     };
@@ -351,6 +391,25 @@ namespace ai
     {
     public:
         MarkNearestBuruEggAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "mark nearest buru egg") {}
+
+        bool isUseful() override
+        {
+            Unit* reference = bot;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_BURU);
+            if (boss)
+            {
+                Unit* victim = GetVictim(boss);
+                if (victim)
+                    reference = victim;
+            }
+
+            Unit* egg = FindNearestAliveCreature(AQ20::NPC_BURU_EGG, reference);
+            if (!egg)
+                return false;
+
+            return !HasCorrectTargetIcon("cross", egg);
+        }
 
         bool Execute(Event& event) override
         {
@@ -368,7 +427,50 @@ namespace ai
             if (!egg)
                 return false;
 
-            return SelectRtiOrCurrent("skull", egg);
+            return SetTargetIcon("cross", egg);
+        }
+    };
+
+    class SelectBuruAddAction : public AQ20RaidIconActionBase
+    {
+    public:
+        SelectBuruAddAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select buru add") {}
+
+        bool isUseful() override
+        {
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (IsBuruFocusedOnMe())
+                return false;
+
+            Unit* add = GetBestAdd();
+            if (!add || !add->IsAlive())
+                return false;
+
+            if (IsCurrentTarget(add))
+                return false;
+
+            return true;
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* add = GetBestAdd();
+            if (!add || !add->IsAlive())
+                return false;
+
+            return SelectRtiOrCurrent("skull", add);
+        }
+
+    private:
+        Unit* GetBestAdd()
+        {
+            Unit* skull = GetTargetIconUnit("skull");
+            if (skull && skull->IsAlive() && skull->GetEntry() == AQ20::NPC_HIVEZARA_HATCHLING)
+                return skull;
+
+            return FindNearestAliveCreature(AQ20::NPC_HIVEZARA_HATCHLING);
         }
     };
 
@@ -377,19 +479,47 @@ namespace ai
     public:
         SelectBuruEggAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select buru egg") {}
 
-        bool Execute(Event& event) override
+        bool isUseful() override
         {
             if (ai->IsHeal(bot))
                 return false;
 
-            Unit* egg = GetTargetIconUnit("skull");
-            if (!egg || !egg->IsAlive())
-                egg = FindNearestAliveCreature(AQ20::NPC_BURU_EGG);
-
-            if (!egg)
+            if (IsBuruFocusedOnMe())
                 return false;
 
-            return SelectRtiOrCurrent("skull", egg);
+            if (IsBuruShellBroken())
+                return false;
+
+            if (HasAliveCreature(AQ20::NPC_HIVEZARA_HATCHLING))
+                return false;
+
+            Unit* egg = GetBestEgg();
+            if (!egg || !egg->IsAlive())
+                return false;
+
+            if (IsCurrentTarget(egg))
+                return false;
+
+            return true;
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* egg = GetBestEgg();
+            if (!egg || !egg->IsAlive())
+                return false;
+
+            return SelectRtiOrCurrent("cross", egg);
+        }
+
+    private:
+        Unit* GetBestEgg()
+        {
+            Unit* cross = GetTargetIconUnit("cross");
+            if (cross && cross->IsAlive() && cross->GetEntry() == AQ20::NPC_BURU_EGG)
+                return cross;
+
+            return FindNearestAliveCreature(AQ20::NPC_BURU_EGG);
         }
     };
 
@@ -397,6 +527,24 @@ namespace ai
     {
     public:
         SelectBuruBossAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select buru boss") {}
+
+        bool isUseful() override
+        {
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (HasAliveCreature(AQ20::NPC_HIVEZARA_HATCHLING))
+                return false;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_BURU);
+            if (!boss)
+                return false;
+
+            if (IsCurrentTarget(boss))
+                return false;
+
+            return true;
+        }
 
         bool Execute(Event& event) override
         {
@@ -417,16 +565,38 @@ namespace ai
     public:
         SelectAyamissLarvaAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select ayamiss larva") {}
 
-        bool Execute(Event& event) override
+        bool isUseful() override
         {
             if (ai->IsHeal(bot))
                 return false;
 
-            Unit* larva = FindNearestAliveCreature(AQ20::NPC_HIVEZARA_LARVA);
-            if (!larva)
+            Unit* larva = GetBestLarva();
+            if (!larva || !larva->IsAlive())
+                return false;
+
+            if (IsCurrentTarget(larva))
+                return false;
+
+            return true;
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* larva = GetBestLarva();
+            if (!larva || !larva->IsAlive())
                 return false;
 
             return SelectRtiOrCurrent("skull", larva);
+        }
+
+    private:
+        Unit* GetBestLarva()
+        {
+            Unit* skull = GetTargetIconUnit("skull");
+            if (skull && skull->IsAlive() && skull->GetEntry() == AQ20::NPC_HIVEZARA_LARVA)
+                return skull;
+
+            return FindNearestAliveCreature(AQ20::NPC_HIVEZARA_LARVA);
         }
     };
 
@@ -435,16 +605,33 @@ namespace ai
     public:
         SelectAyamissBossAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select ayamiss boss") {}
 
-        bool Execute(Event& event) override
+        bool isUseful() override
         {
             if (ai->IsHeal(bot))
+                return false;
+
+            if (HasAliveCreature(AQ20::NPC_HIVEZARA_LARVA))
                 return false;
 
             Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
             if (!boss)
                 return false;
 
-            // In phase 1 Ayamiss is flying; melee cannot usefully hit her.
+            if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
+                return false;
+
+            if (IsCurrentTarget(boss))
+                return false;
+
+            return true;
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            if (!boss)
+                return false;
+
             if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
                 return false;
 
@@ -480,7 +667,6 @@ namespace ai
             if (!boss)
                 return false;
 
-            // Tank should drag Ossirian; others can ignore movement unless already near crystal.
             return ai->IsTank(bot);
         }
 
@@ -583,6 +769,21 @@ namespace ai
     public:
         SelectOssirianBossAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "select ossirian boss") {}
 
+        bool isUseful() override
+        {
+            if (ai->IsHeal(bot))
+                return false;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_OSSIRIAN);
+            if (!boss)
+                return false;
+
+            if (IsCurrentTarget(boss))
+                return false;
+
+            return true;
+        }
+
         bool Execute(Event& event) override
         {
             Unit* boss = FindAliveCreature(AQ20::NPC_OSSIRIAN);
@@ -615,6 +816,7 @@ namespace ai
             creators["disable buru strategy"] = [](PlayerbotAI* ai) { return new BuruDisableFightStrategyAction(ai); };
             creators["move to buru egg"] = [](PlayerbotAI* ai) { return new MoveToBuruEggAction(ai); };
             creators["mark nearest buru egg"] = [](PlayerbotAI* ai) { return new MarkNearestBuruEggAction(ai); };
+            creators["select buru add"] = [](PlayerbotAI* ai) { return new SelectBuruAddAction(ai); };
             creators["select buru egg"] = [](PlayerbotAI* ai) { return new SelectBuruEggAction(ai); };
             creators["select buru boss"] = [](PlayerbotAI* ai) { return new SelectBuruBossAction(ai); };
 

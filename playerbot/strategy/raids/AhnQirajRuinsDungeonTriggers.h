@@ -71,6 +71,18 @@ namespace ai
         }
     };
 
+    class BuruAddAliveTrigger : public DungeonCreatureTrigger
+    {
+    public:
+        BuruAddAliveTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "buru add alive", 1) {}
+
+        bool IsActive() override
+        {
+            return IsAlive(AQ20::NPC_HIVEZARA_HATCHLING);
+        }
+    };
+
     class BuruEggAvailableTrigger : public DungeonCreatureTrigger
     {
     public:
@@ -79,6 +91,16 @@ namespace ai
 
         bool IsActive() override
         {
+            Unit* boss = FindAliveCreature(AQ20::NPC_BURU);
+            if (!boss)
+                return false;
+
+            if (GetHealthPct(boss) <= 20.0f)
+                return false;
+
+            if (IsAlive(AQ20::NPC_HIVEZARA_HATCHLING))
+                return false;
+
             return IsAlive(AQ20::NPC_BURU_EGG);
         }
     };
@@ -92,10 +114,15 @@ namespace ai
         bool IsActive() override
         {
             Unit* boss = FindAliveCreature(AQ20::NPC_BURU);
-            return boss && GetHealthPct(boss) <= 20.0f;
+            if (!boss)
+                return false;
+
+            if (IsAlive(AQ20::NPC_HIVEZARA_HATCHLING))
+                return false;
+
+            return GetHealthPct(boss) <= 20.0f;
         }
     };
-
     // ------------------------------------------------------------
     // Ayamiss
     // ------------------------------------------------------------
@@ -217,6 +244,7 @@ namespace ai
             creators["kurinnaxx mortal wound high"] = [](PlayerbotAI* ai) { return new KurinnaxxMortalWoundHighTrigger(ai); };
 
             creators["buru focused me"] = [](PlayerbotAI* ai) { return new BuruFocusedMeTrigger(ai); };
+            creators["buru add alive"] = [](PlayerbotAI* ai) { return new BuruAddAliveTrigger(ai); };
             creators["buru egg available"] = [](PlayerbotAI* ai) { return new BuruEggAvailableTrigger(ai); };
             creators["buru shell broken"] = [](PlayerbotAI* ai) { return new BuruShellBrokenTrigger(ai); };
 

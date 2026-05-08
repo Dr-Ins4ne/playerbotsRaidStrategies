@@ -26,7 +26,6 @@ namespace ai
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitDeadTriggers(std::list<TriggerNode*>& triggers) override;
         void InitReactionTriggers(std::list<TriggerNode*>& triggers) override;
-        void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
     };
 
     class BuruFightStrategy : public Strategy

@@ -602,62 +602,33 @@ namespace ai
     public:
         AhnQirajRuinsActionContext()
         {
-            creators["enable ahnqiraj ruins strategy"] = &AhnQirajRuinsActionContext::enable_aq20;
-            creators["disable ahnqiraj ruins strategy"] = &AhnQirajRuinsActionContext::disable_aq20;
+            creators["enable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new AQ20EnableDungeonStrategyAction(ai); };
+            creators["disable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new AQ20DisableDungeonStrategyAction(ai); };
 
-            creators["enable kurinnaxx strategy"] = &AhnQirajRuinsActionContext::enable_kurinnaxx;
-            creators["disable kurinnaxx strategy"] = &AhnQirajRuinsActionContext::disable_kurinnaxx;
-            creators["move away from kurinnaxx sand trap"] = &AhnQirajRuinsActionContext::move_away_from_kurinnaxx_sand_trap;
-            creators["taunt kurinnaxx"] = &AhnQirajRuinsActionContext::taunt_kurinnaxx;
-            creators["kurinnaxx tank retreat"] = &AhnQirajRuinsActionContext::kurinnaxx_tank_retreat;
+            creators["enable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new KurinnaxxEnableFightStrategyAction(ai); };
+            creators["disable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new KurinnaxxDisableFightStrategyAction(ai); };
+            creators["move away from kurinnaxx sand trap"] = [](PlayerbotAI* ai) { return new MoveAwayFromKurinnaxxSandTrapAction(ai); };
+            creators["taunt kurinnaxx"] = [](PlayerbotAI* ai) { return new TauntKurinnaxxAction(ai); };
+            creators["kurinnaxx tank retreat"] = [](PlayerbotAI* ai) { return new KurinnaxxTankRetreatAction(ai); };
 
-            creators["enable buru strategy"] = &AhnQirajRuinsActionContext::enable_buru;
-            creators["disable buru strategy"] = &AhnQirajRuinsActionContext::disable_buru;
-            creators["move to buru egg"] = &AhnQirajRuinsActionContext::move_to_buru_egg;
-            creators["mark nearest buru egg"] = &AhnQirajRuinsActionContext::mark_nearest_buru_egg;
-            creators["select buru egg"] = &AhnQirajRuinsActionContext::select_buru_egg;
-            creators["select buru boss"] = &AhnQirajRuinsActionContext::select_buru_boss;
+            creators["enable buru strategy"] = [](PlayerbotAI* ai) { return new BuruEnableFightStrategyAction(ai); };
+            creators["disable buru strategy"] = [](PlayerbotAI* ai) { return new BuruDisableFightStrategyAction(ai); };
+            creators["move to buru egg"] = [](PlayerbotAI* ai) { return new MoveToBuruEggAction(ai); };
+            creators["mark nearest buru egg"] = [](PlayerbotAI* ai) { return new MarkNearestBuruEggAction(ai); };
+            creators["select buru egg"] = [](PlayerbotAI* ai) { return new SelectBuruEggAction(ai); };
+            creators["select buru boss"] = [](PlayerbotAI* ai) { return new SelectBuruBossAction(ai); };
 
-            creators["enable ayamiss strategy"] = &AhnQirajRuinsActionContext::enable_ayamiss;
-            creators["disable ayamiss strategy"] = &AhnQirajRuinsActionContext::disable_ayamiss;
-            creators["select ayamiss larva"] = &AhnQirajRuinsActionContext::select_ayamiss_larva;
-            creators["select ayamiss boss"] = &AhnQirajRuinsActionContext::select_ayamiss_boss;
-            creators["ayamiss stinger retreat"] = &AhnQirajRuinsActionContext::ayamiss_stinger_retreat;
+            creators["enable ayamiss strategy"] = [](PlayerbotAI* ai) { return new AyamissEnableFightStrategyAction(ai); };
+            creators["disable ayamiss strategy"] = [](PlayerbotAI* ai) { return new AyamissDisableFightStrategyAction(ai); };
+            creators["select ayamiss larva"] = [](PlayerbotAI* ai) { return new SelectAyamissLarvaAction(ai); };
+            creators["select ayamiss boss"] = [](PlayerbotAI* ai) { return new SelectAyamissBossAction(ai); };
+            creators["ayamiss stinger retreat"] = [](PlayerbotAI* ai) { return new AyamissStingerRetreatAction(ai); };
 
-            creators["enable ossirian strategy"] = &AhnQirajRuinsActionContext::enable_ossirian;
-            creators["disable ossirian strategy"] = &AhnQirajRuinsActionContext::disable_ossirian;
-            creators["move to ossirian crystal"] = &AhnQirajRuinsActionContext::move_to_ossirian_crystal;
-            creators["use ossirian crystal"] = &AhnQirajRuinsActionContext::use_ossirian_crystal;
-            creators["select ossirian boss"] = &AhnQirajRuinsActionContext::select_ossirian_boss;
+            creators["enable ossirian strategy"] = [](PlayerbotAI* ai) { return new OssirianEnableFightStrategyAction(ai); };
+            creators["disable ossirian strategy"] = [](PlayerbotAI* ai) { return new OssirianDisableFightStrategyAction(ai); };
+            creators["move to ossirian crystal"] = [](PlayerbotAI* ai) { return new MoveToOssirianCrystalAction(ai); };
+            creators["use ossirian crystal"] = [](PlayerbotAI* ai) { return new UseOssirianCrystalAction(ai); };
+            creators["select ossirian boss"] = [](PlayerbotAI* ai) { return new SelectOssirianBossAction(ai); };
         }
-
-    private:
-        static Action* enable_aq20(PlayerbotAI* ai) { return new AQ20EnableDungeonStrategyAction(ai); }
-        static Action* disable_aq20(PlayerbotAI* ai) { return new AQ20DisableDungeonStrategyAction(ai); }
-
-        static Action* enable_kurinnaxx(PlayerbotAI* ai) { return new KurinnaxxEnableFightStrategyAction(ai); }
-        static Action* disable_kurinnaxx(PlayerbotAI* ai) { return new KurinnaxxDisableFightStrategyAction(ai); }
-        static Action* move_away_from_kurinnaxx_sand_trap(PlayerbotAI* ai) { return new MoveAwayFromKurinnaxxSandTrapAction(ai); }
-        static Action* taunt_kurinnaxx(PlayerbotAI* ai) { return new TauntKurinnaxxAction(ai); }
-        static Action* kurinnaxx_tank_retreat(PlayerbotAI* ai) { return new KurinnaxxTankRetreatAction(ai); }
-
-        static Action* enable_buru(PlayerbotAI* ai) { return new BuruEnableFightStrategyAction(ai); }
-        static Action* disable_buru(PlayerbotAI* ai) { return new BuruDisableFightStrategyAction(ai); }
-        static Action* move_to_buru_egg(PlayerbotAI* ai) { return new MoveToBuruEggAction(ai); }
-        static Action* mark_nearest_buru_egg(PlayerbotAI* ai) { return new MarkNearestBuruEggAction(ai); }
-        static Action* select_buru_egg(PlayerbotAI* ai) { return new SelectBuruEggAction(ai); }
-        static Action* select_buru_boss(PlayerbotAI* ai) { return new SelectBuruBossAction(ai); }
-
-        static Action* enable_ayamiss(PlayerbotAI* ai) { return new AyamissEnableFightStrategyAction(ai); }
-        static Action* disable_ayamiss(PlayerbotAI* ai) { return new AyamissDisableFightStrategyAction(ai); }
-        static Action* select_ayamiss_larva(PlayerbotAI* ai) { return new SelectAyamissLarvaAction(ai); }
-        static Action* select_ayamiss_boss(PlayerbotAI* ai) { return new SelectAyamissBossAction(ai); }
-        static Action* ayamiss_stinger_retreat(PlayerbotAI* ai) { return new AyamissStingerRetreatAction(ai); }
-
-        static Action* enable_ossirian(PlayerbotAI* ai) { return new OssirianEnableFightStrategyAction(ai); }
-        static Action* disable_ossirian(PlayerbotAI* ai) { return new OssirianDisableFightStrategyAction(ai); }
-        static Action* move_to_ossirian_crystal(PlayerbotAI* ai) { return new MoveToOssirianCrystalAction(ai); }
-        static Action* use_ossirian_crystal(PlayerbotAI* ai) { return new UseOssirianCrystalAction(ai); }
-        static Action* select_ossirian_boss(PlayerbotAI* ai) { return new SelectOssirianBossAction(ai); }
     };
 }

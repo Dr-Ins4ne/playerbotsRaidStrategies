@@ -196,7 +196,10 @@ namespace ai
             creators["majordomo"] = [](PlayerbotAI* ai){ return new MajordomoExecutusFightStrategy(ai); };
             creators["ragnaros"] = [](PlayerbotAI* ai){ return new RagnarosFightStrategy(ai); };
 
-            creators["kurinaxx"] = [](PlayerbotAI* ai){ return new KurinnaxxFightStrategy(ai); };
+            creators["kurinnaxx"] = [](PlayerbotAI* ai) { return new KurinnaxxFightStrategy(ai); };
+            creators["buru"] = [](PlayerbotAI* ai) { return new BuruFightStrategy(ai); };
+            creators["ayamiss"] = [](PlayerbotAI* ai) { return new AyamissFightStrategy(ai); };
+            creators["ossirian"] = [](PlayerbotAI* ai) { return new OssirianFightStrategy(ai); };
 
         
         }

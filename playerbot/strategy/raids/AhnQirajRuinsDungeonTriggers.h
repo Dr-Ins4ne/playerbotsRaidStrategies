@@ -198,44 +198,34 @@ namespace ai
     public:
         AhnQirajRuinsTriggerContext()
         {
-            creators["enter aq20"] = [](PlayerbotAI* ai){return new EnterDungeonTrigger(ai, "enter aq20", "ahnqiraj ruins", AQ20::MAP_ID);};
-            creators["leave aq20"] = [](PlayerbotAI* ai){return new LeaveDungeonTrigger(ai, "leave aq20", "ahnqiraj ruins", AQ20::MAP_ID);};
-            creators["start kurinnaxx fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai, "start kurinnaxx fight", "kurinnaxx", AQ20::NPC_KURINNAXX);};
-            creators["end kurinnaxx fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai, "end kurinnaxx fight", "kurinnaxx", AQ20::NPC_KURINNAXX);};
-            creators["start buru fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai, "start buru fight", "buru", AQ20::NPC_BURU);};
-            creators["end buru fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai, "end buru fight", "buru", AQ20::NPC_BURU);};
-            creators["start ayamiss fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai, "start ayamiss fight", "ayamiss", AQ20::NPC_AYAMISS);};
-            creators["end ayamiss fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai, "end ayamiss fight", "ayamiss", AQ20::NPC_AYAMISS);};
-            creators["start ossirian fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai, "start ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN);};
-            creators["end ossirian fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai, "end ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN);};
-            creators["kurinnaxx sand trap close"] = &AhnQirajRuinsTriggerContext::kurinnaxx_sand_trap_close;
-            creators["kurinnaxx mortal wound high"] = &AhnQirajRuinsTriggerContext::kurinnaxx_mortal_wound_high;
+            creators["enter aq20"] = [](PlayerbotAI* ai) { return new EnterDungeonTrigger(ai, "enter aq20", "ahnqiraj ruins", AQ20::MAP_ID); };
+            creators["leave aq20"] = [](PlayerbotAI* ai) { return new LeaveDungeonTrigger(ai, "leave aq20", "ahnqiraj ruins", AQ20::MAP_ID); };
 
-            creators["buru focused me"] = &AhnQirajRuinsTriggerContext::buru_focused_me;
-            creators["buru egg available"] = &AhnQirajRuinsTriggerContext::buru_egg_available;
-            creators["buru shell broken"] = &AhnQirajRuinsTriggerContext::buru_shell_broken;
+            creators["start kurinnaxx fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start kurinnaxx fight", "kurinnaxx", AQ20::NPC_KURINNAXX); };
+            creators["end kurinnaxx fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end kurinnaxx fight", "kurinnaxx", AQ20::NPC_KURINNAXX); };
 
-            creators["ayamiss larva alive"] = &AhnQirajRuinsTriggerContext::ayamiss_larva_alive;
-            creators["ayamiss boss available"] = &AhnQirajRuinsTriggerContext::ayamiss_boss_available;
-            creators["ayamiss poison stinger high"] = &AhnQirajRuinsTriggerContext::ayamiss_poison_stinger_high;
+            creators["start buru fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start buru fight", "buru", AQ20::NPC_BURU); };
+            creators["end buru fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end buru fight", "buru", AQ20::NPC_BURU); };
 
-            creators["ossirian needs crystal"] = &AhnQirajRuinsTriggerContext::ossirian_needs_crystal;
-            creators["ossirian crystal close"] = &AhnQirajRuinsTriggerContext::ossirian_crystal_close;
+            creators["start ayamiss fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start ayamiss fight", "ayamiss", AQ20::NPC_AYAMISS); };
+            creators["end ayamiss fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end ayamiss fight", "ayamiss", AQ20::NPC_AYAMISS); };
+
+            creators["start ossirian fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN); };
+            creators["end ossirian fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN); };
+
+            creators["kurinnaxx sand trap close"] = [](PlayerbotAI* ai) { return new KurinaxxSandTrapTrigger(ai); };
+            creators["kurinnaxx mortal wound high"] = [](PlayerbotAI* ai) { return new KurinnaxxMortalWoundHighTrigger(ai); };
+
+            creators["buru focused me"] = [](PlayerbotAI* ai) { return new BuruFocusedMeTrigger(ai); };
+            creators["buru egg available"] = [](PlayerbotAI* ai) { return new BuruEggAvailableTrigger(ai); };
+            creators["buru shell broken"] = [](PlayerbotAI* ai) { return new BuruShellBrokenTrigger(ai); };
+
+            creators["ayamiss larva alive"] = [](PlayerbotAI* ai) { return new AyamissLarvaAliveTrigger(ai); };
+            creators["ayamiss boss available"] = [](PlayerbotAI* ai) { return new AyamissBossAvailableTrigger(ai); };
+            creators["ayamiss poison stinger high"] = [](PlayerbotAI* ai) { return new AyamissPoisonStingerHighTrigger(ai); };
+
+            creators["ossirian needs crystal"] = [](PlayerbotAI* ai) { return new OssirianNeedsCrystalTrigger(ai); };
+            creators["ossirian crystal close"] = [](PlayerbotAI* ai) { return new OssirianCrystalCloseTrigger(ai); };
         }
-
-    private:
-        static Trigger* kurinnaxx_sand_trap_close(PlayerbotAI* ai) { return new KurinaxxSandTrapTrigger(ai); }
-        static Trigger* kurinnaxx_mortal_wound_high(PlayerbotAI* ai) { return new KurinnaxxMortalWoundHighTrigger(ai); }
-
-        static Trigger* buru_focused_me(PlayerbotAI* ai) { return new BuruFocusedMeTrigger(ai); }
-        static Trigger* buru_egg_available(PlayerbotAI* ai) { return new BuruEggAvailableTrigger(ai); }
-        static Trigger* buru_shell_broken(PlayerbotAI* ai) { return new BuruShellBrokenTrigger(ai); }
-
-        static Trigger* ayamiss_larva_alive(PlayerbotAI* ai) { return new AyamissLarvaAliveTrigger(ai); }
-        static Trigger* ayamiss_boss_available(PlayerbotAI* ai) { return new AyamissBossAvailableTrigger(ai); }
-        static Trigger* ayamiss_poison_stinger_high(PlayerbotAI* ai) { return new AyamissPoisonStingerHighTrigger(ai); }
-
-        static Trigger* ossirian_needs_crystal(PlayerbotAI* ai) { return new OssirianNeedsCrystalTrigger(ai); }
-        static Trigger* ossirian_crystal_close(PlayerbotAI* ai) { return new OssirianCrystalCloseTrigger(ai); }
     };
 }

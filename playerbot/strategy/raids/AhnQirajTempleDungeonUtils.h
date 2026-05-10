@@ -2,8 +2,10 @@
 
 #include "DungeonTargetHelper.h"
 #include "playerbot/playerbot.h"
+#include "Spells/SpellAuraDefines.h"
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 namespace ai
@@ -12,6 +14,13 @@ namespace ai
     {
         static constexpr uint32 MAP_AHNQIRAJ_TEMPLE = 531;
         static constexpr uint32 NPC_PROPHET_SKERAM = 15263;
+
+        static constexpr float SKERAM_PULL_X = -8361.0f;
+        static constexpr float SKERAM_PULL_Y = 2074.0f;
+        static constexpr float SKERAM_PULL_Z = 125.7f;
+        static constexpr float SKERAM_PULL_TOLERANCE = 3.0f;
+
+        static constexpr float SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE = 10.0f;
 
         inline bool IsSkeram(Unit* unit)
         {
@@ -39,8 +48,6 @@ namespace ai
                 uint32 maxHealth = unit->GetMaxHealth();
                 uint32 health = unit->GetHealth();
 
-                // Real Skeram should have the highest absolute/max health.
-                // Do not use health percentage here: images often spawn at 100%.
                 if (!best ||
                     maxHealth > bestMaxHealth ||
                     (maxHealth == bestMaxHealth && health > bestHealth))
@@ -52,6 +59,41 @@ namespace ai
             }
 
             return best;
+        }
+
+        inline bool IsRealSkeramTargetingBot(PlayerbotAI* ai)
+        {
+            if (!ai)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            Unit* real = GetRealSkeram(ai);
+            if (!real)
+                return false;
+
+            Unit* victim = DungeonTargetHelper::GetVictim(real);
+            if (!victim)
+                return false;
+
+            return victim->GetObjectGuid() == bot->GetObjectGuid();
+        }
+
+        inline bool IsBotNearSkeramPullPosition(PlayerbotAI* ai, float tolerance = SKERAM_PULL_TOLERANCE)
+        {
+            if (!ai)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            if (bot->GetMapId() != MAP_AHNQIRAJ_TEMPLE)
+                return false;
+
+            return bot->GetDistance(SKERAM_PULL_X, SKERAM_PULL_Y, SKERAM_PULL_Z) <= tolerance;
         }
 
         inline bool IsRealSkeram(PlayerbotAI* ai, Unit* unit)
@@ -108,6 +150,208 @@ namespace ai
         inline bool HasSkeramImages(PlayerbotAI* ai)
         {
             return !GetSkeramImages(ai).empty();
+        }
+
+        inline std::string GetSkeramCcSpell(Player* bot)
+        {
+            if (!bot)
+                return "";
+
+            switch (bot->getClass())
+            {
+                case CLASS_MAGE:
+                    return "polymorph";
+
+                case CLASS_WARLOCK:
+                    return "fear";
+
+                case CLASS_DRUID:
+                    return "entangling roots";
+
+                default:
+                    return "";
+            }
+        }
+
+        inline bool IsSkeramSupportedCcClass(Player* bot)
+        {
+            return !GetSkeramCcSpell(bot).empty();
+        }
+
+        inline bool IsSkeramControlled(Unit* unit)
+        {
+            if (!unit || !unit->IsAlive())
+                return false;
+
+            // Robust charm / mind-control detection.
+            if (unit->HasAuraType(AuraType::SPELL_AURA_MOD_CHARM))
+                return true;
+
+            return false;
+        }
+
+        inline bool IsSkeramControlled(PlayerbotAI* ai, Unit* unit)
+        {
+            if (!unit || !unit->IsAlive())
+                return false;
+
+            if (IsSkeramControlled(unit))
+                return true;
+
+            // Fallback for old/scripted cores where the aura type may not expose cleanly.
+            static const std::vector<std::string> controlAuras =
+            {
+                "true fulfillment",
+                "mind control",
+                "charm"
+            };
+
+            return DungeonTargetHelper::HasAnyAura(ai, unit, controlAuras);
+        }
+
+        inline bool IsAlreadySkeramCrowdControlled(PlayerbotAI* ai, Unit* unit)
+        {
+            static const std::vector<std::string> ccAuras =
+            {
+                "polymorph",
+                "fear",
+                "entangling roots"
+            };
+
+            return DungeonTargetHelper::HasAnyAura(ai, unit, ccAuras);
+        }
+
+        inline bool IsValidSkeramControlledTarget(PlayerbotAI* ai, Player* bot, Unit* unit, bool requireNotCc = true)
+        {
+            if (!DungeonTargetHelper::IsAliveGroupPlayer(bot, unit, true))
+                return false;
+
+            if (!IsSkeramControlled(ai, unit))
+                return false;
+
+            if (requireNotCc && IsAlreadySkeramCrowdControlled(ai, unit))
+                return false;
+
+            return true;
+        }
+
+        inline Unit* FindSkeramControlledTargetInList(
+            PlayerbotAI* ai,
+            Player* bot,
+            std::string const& valueName,
+            bool requireNotCc = true)
+        {
+            auto predicate = [ai, bot, requireNotCc](Unit* unit) -> bool
+            {
+                return IsValidSkeramControlledTarget(ai, bot, unit, requireNotCc);
+            };
+
+            return DungeonTargetHelper::FindUnitInGuidList(ai, valueName, predicate);
+        }
+
+        inline Unit* FindSkeramControlledTarget(PlayerbotAI* ai, Player* bot, bool requireNotCc = true)
+        {
+            if (!ai || !bot)
+                return nullptr;
+
+            Unit* target = FindSkeramControlledTargetInList(ai, bot, "nearest friendly players", requireNotCc);
+            if (target)
+                return target;
+
+            target = FindSkeramControlledTargetInList(ai, bot, "possible attack targets", requireNotCc);
+            if (target)
+                return target;
+
+            target = FindSkeramControlledTargetInList(ai, bot, "attackers", requireNotCc);
+            if (target)
+                return target;
+
+            target = FindSkeramControlledTargetInList(ai, bot, "possible targets", requireNotCc);
+            if (target)
+                return target;
+
+            Unit* currentTarget = DungeonTargetHelper::GetUnitValue(ai, "current target");
+            if (IsValidSkeramControlledTarget(ai, bot, currentTarget, requireNotCc))
+                return currentTarget;
+
+            return nullptr;
+        }
+
+        inline Unit* FindSkeramControlledTargetNearBot(PlayerbotAI* ai, Player* bot, float maxDistance)
+        {
+            if (!ai || !bot)
+                return nullptr;
+
+            auto isNearControlled = [ai, bot, maxDistance](Unit* unit) -> bool
+            {
+                if (!IsValidSkeramControlledTarget(ai, bot, unit, false))
+                    return false;
+
+                return bot->GetDistance(unit) <= maxDistance;
+            };
+
+            Unit* target = DungeonTargetHelper::FindUnitInGuidList(ai, "nearest friendly players", isNearControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "attackers", isNearControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "possible attack targets", isNearControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "possible targets", isNearControlled);
+            if (target)
+                return target;
+
+            Unit* currentTarget = DungeonTargetHelper::GetUnitValue(ai, "current target");
+            if (isNearControlled(currentTarget))
+                return currentTarget;
+
+            return nullptr;
+        }
+
+        inline bool CanCcSkeramControlledTarget(PlayerbotAI* ai, Player* bot)
+        {
+            if (!ai || !bot)
+                return false;
+
+            std::string spell = GetSkeramCcSpell(bot);
+            if (spell.empty())
+                return false;
+
+            Unit* target = FindSkeramControlledTarget(ai, bot, true);
+            if (!target)
+                return false;
+
+            return ai->CanCastSpell(spell, target, true);
+        }
+
+        inline bool CastCcOnSkeramControlledTarget(PlayerbotAI* ai, Player* bot)
+        {
+            if (!ai || !bot)
+                return false;
+
+            if (bot->GetCurrentSpell(CURRENT_GENERIC_SPELL) ||
+                bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+            {
+                return false;
+            }
+
+            std::string spell = GetSkeramCcSpell(bot);
+            if (spell.empty())
+                return false;
+
+            Unit* target = FindSkeramControlledTarget(ai, bot, true);
+            if (!target)
+                return false;
+
+            if (!ai->CanCastSpell(spell, target, true))
+                return false;
+
+            return ai->CastSpell(spell, target);
         }
     }
 }

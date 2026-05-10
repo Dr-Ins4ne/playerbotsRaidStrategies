@@ -50,3 +50,69 @@ bool SkeramNoImagesActiveTrigger::IsActive()
     // Fire if DPS RTI/current target is wrong.
     return DungeonTargetHelper::NeedsDpsRtiSelection(ai, "skull", real);
 }
+
+bool SkeramTankOutOfPositionTrigger::IsActive()
+{
+    if (!ai->HasStrategy("skeram", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!AhnQirajTemple::IsRealSkeramTargetingBot(ai))
+        return false;
+
+    if (!ai->CanMove())
+        return false;
+
+    return !AhnQirajTemple::IsBotNearSkeramPullPosition(ai);
+}
+
+bool SkeramControlledTargetNeedsCcTrigger::IsActive()
+{
+    if (!ai->HasStrategy("skeram", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!bot)
+        return false;
+
+    Unit* real = AhnQirajTemple::GetRealSkeram(ai);
+    if (!real)
+        return false;
+
+    return AhnQirajTemple::CanCcSkeramControlledTarget(ai, bot);
+}
+
+bool SkeramControlledPlayerTooCloseTrigger::IsActive()
+{
+    if (!ai->HasStrategy("skeram", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!bot || !bot->IsInWorld() || bot->IsBeingTeleported())
+        return false;
+
+    if (!ai->CanMove())
+        return false;
+
+    Unit* real = AhnQirajTemple::GetRealSkeram(ai);
+    if (!real)
+        return false;
+
+    // The aggro holder must keep real Skeram anchored.
+    if (AhnQirajTemple::IsRealSkeramTargetingBot(ai))
+        return false;
+
+    // Avoid movement spam.
+    time_t now = time(0);
+    if (lastMoveTime && now < lastMoveTime + 2)
+        return false;
+
+    Unit* controlled = AhnQirajTemple::FindSkeramControlledTargetNearBot(
+        ai,
+        bot,
+        AhnQirajTemple::SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE
+    );
+
+    if (!controlled)
+        return false;
+
+    lastMoveTime = now;
+    return true;
+}

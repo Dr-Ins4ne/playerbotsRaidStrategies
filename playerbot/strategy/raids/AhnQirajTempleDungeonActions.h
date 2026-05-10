@@ -12,6 +12,27 @@
 
 namespace ai
 {
+
+    class CrowdControlSkeramControlledTargetAction : public Action
+    {
+    public:
+        CrowdControlSkeramControlledTargetAction(PlayerbotAI* ai)
+            : Action(ai, "cc skeram controlled target") {}
+
+        bool Execute(Event& event) override;
+        bool isPossible() override;
+    };
+
+    class MoveAwayFromSkeramControlledPlayerAction : public MovementAction
+    {
+    public:
+        MoveAwayFromSkeramControlledPlayerAction(PlayerbotAI* ai)
+            : MovementAction(ai, "move away from skeram controlled player") {}
+
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+        bool isPossible() override;
+    };
     class SkeramMarkImagesAction : public RaidIconActionBase
     {
     public:
@@ -52,6 +73,17 @@ namespace ai
         bool isUseful() override;
     };
 
+    class SkeramPullToTankPositionAction : public MovementAction
+    {
+    public:
+        SkeramPullToTankPositionAction(PlayerbotAI* ai)
+            : MovementAction(ai, "skeram pull to tank position") {}
+
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+        bool isPossible() override;
+    };
+
     class AhnQirajTempleActionContext : public NamedObjectContext<Action>
     {
     public:
@@ -67,6 +99,9 @@ namespace ai
             creators["skeram mark real"] = [](PlayerbotAI* ai) { return new SkeramMarkRealAction(ai); };
             creators["skeram select image target"] = [](PlayerbotAI* ai) { return new SkeramSelectImageTargetAction(ai); };
             creators["skeram select real target"] = [](PlayerbotAI* ai) { return new SkeramSelectRealTargetAction(ai); };
+            creators["skeram pull to tank position"] = [](PlayerbotAI* ai){return new SkeramPullToTankPositionAction(ai);};
+            creators["cc skeram controlled target"] = [](PlayerbotAI* ai){return new CrowdControlSkeramControlledTargetAction(ai);};
+            creators["move away from skeram controlled player"] = [](PlayerbotAI* ai){return new MoveAwayFromSkeramControlledPlayerAction(ai);};
         }
     };
 }

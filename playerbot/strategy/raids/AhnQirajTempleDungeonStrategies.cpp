@@ -24,6 +24,24 @@ void AhnQirajTempleDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*
 
 void SkeramFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode(
+        "skeram controlled target needs cc",
+        NextAction::array(0,
+            new NextAction("interrupt current spell", 106.0f),
+            new NextAction("cc skeram controlled target", 105.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "skeram controlled player too close",
+        NextAction::array(0,
+            new NextAction("move away from skeram controlled player", 104.0f),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+    "skeram tank out of position",
+    NextAction::array(0,
+        new NextAction("skeram pull to tank position", 101.0f),
+        NULL)));
     // Split phase: immediately stop long casts, rewrite kill icons, and force DPS onto images.
     triggers.push_back(new TriggerNode(
         "skeram images active",

@@ -21,8 +21,8 @@
 #include "raids/ZulGurubDungeonActions.h"
 #include "raids/OnyxiasLairDungeonTriggers.h"
 #include "raids/OnyxiasLairDungeonActions.h"
-#include "triggers/AhnQirajTempleDungeonTriggers.h"
-#include "actions/AhnQirajTempleDungeonActions.h"
+#include "raids/AhnQirajTempleDungeonTriggers.h"
+#include "raids/AhnQirajTempleDungeonActions.h"
 using namespace ai;
 
 AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)

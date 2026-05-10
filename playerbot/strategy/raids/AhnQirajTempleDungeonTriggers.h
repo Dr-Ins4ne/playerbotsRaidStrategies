@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DungeonTriggers.h"
-#include "../generic/AhnQirajTempleDungeonUtils.h"
+#include "../triggers/DungeonTriggers.h"
+#include "AhnQirajTempleDungeonUtils.h"
 #include "playerbot/strategy/NamedObjectContext.h"
 
 namespace ai

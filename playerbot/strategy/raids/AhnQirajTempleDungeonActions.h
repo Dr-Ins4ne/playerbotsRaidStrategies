@@ -1,11 +1,11 @@
 #pragma once
 
-#include "GenericActions.h"
-#include "ChangeStrategyAction.h"
-#include "GenericSpellActions.h"
-#include "DungeonActions.h"
-#include "../generic/RaidIconActionBase.h"
-#include "../generic/AhnQirajTempleDungeonUtils.h"
+#include "../actions/GenericActions.h"
+#include "../actions/ChangeStrategyAction.h"
+#include "../actions/GenericSpellActions.h"
+#include "../actions/DungeonActions.h"
+#include "RaidIconActionBase.h"
+#include "AhnQirajTempleDungeonUtils.h"
 #include "playerbot/strategy/NamedObjectContext.h"
 
 #include <vector>

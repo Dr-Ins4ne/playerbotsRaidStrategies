@@ -98,6 +98,7 @@ void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "buru add alive",
         NextAction::array(0,
             new NextAction("select buru add", 60.0f),
+            new NextAction("attack rti target", 59.0f),
             NULL)));
 
     // Phase 2: burn boss.
@@ -105,6 +106,7 @@ void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "buru shell broken",
         NextAction::array(0,
             new NextAction("select buru boss", 40.0f),
+            new NextAction("attack rti target", 39.0f),
             NULL)));
 
     // Only focus eggs when no hatchling is alive.
@@ -112,6 +114,7 @@ void BuruFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "buru egg available",
         NextAction::array(0,
             new NextAction("select buru egg", 35.0f),
+            new NextAction("attack rti target", 34.0f),
             NULL)));
 }
 
@@ -141,6 +144,12 @@ void AyamissFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         NextAction::array(0,
             new NextAction("select ayamiss larva", 100.0f),
             new NextAction("attack rti target", 95.0f),
+            NULL)));
+    
+    triggers.push_back(new TriggerNode(
+        "ayamiss warlock tank needed",
+        NextAction::array(0,
+            new NextAction("warlock tank ayamiss", 105.0f),
             NULL)));
 
     // Ranged can hit Ayamiss in phase 1; melee will skip until she lands below 70%.

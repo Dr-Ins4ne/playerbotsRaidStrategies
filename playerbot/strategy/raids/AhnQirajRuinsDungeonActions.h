@@ -2,6 +2,7 @@
 
 #include "../actions/DungeonActions.h"
 #include "../actions/GenericSpellActions.h"
+#include "../actions/ChangeStrategyAction.h"
 #include "../actions/MovementActions.h"
 #include "RaidIconActionBase.h"
 #include "DungeonTargetHelper.h"
@@ -36,101 +37,7 @@ namespace ai
         static constexpr uint32 SPELL_OSSIRIAN_STRENGTH = 25176;
     }
 
-    // ------------------------------------------------------------
-    // Small local strategy-change helper
-    // ------------------------------------------------------------
-
-    class AQ20ChangeCombatStrategyAction : public Action
-    {
-    public:
-        AQ20ChangeCombatStrategyAction(PlayerbotAI* ai, std::string name, std::string strategy, bool enable)
-            : Action(ai, name), strategy(strategy), enable(enable) {}
-
-        bool Execute(Event& event) override
-        {
-            ai->ChangeStrategy(std::string(enable ? "+" : "-") + strategy, BotState::BOT_STATE_COMBAT);
-            return true;
-        }
-
-        bool isUseful() override
-        {
-            return ai->HasStrategy(strategy, BotState::BOT_STATE_COMBAT) != enable;
-        }
-
-    private:
-        std::string strategy;
-        bool enable;
-    };
-
-    class AQ20EnableDungeonStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        AQ20EnableDungeonStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "enable ahnqiraj ruins strategy", "ahnqiraj ruins", true) {}
-    };
-
-    class AQ20DisableDungeonStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        AQ20DisableDungeonStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "disable ahnqiraj ruins strategy", "ahnqiraj ruins", false) {}
-    };
-
-    class KurinnaxxEnableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        KurinnaxxEnableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "enable kurinnaxx strategy", "kurinnaxx", true) {}
-    };
-
-    class KurinnaxxDisableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        KurinnaxxDisableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "disable kurinnaxx strategy", "kurinnaxx", false) {}
-    };
-
-    class BuruEnableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        BuruEnableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "enable buru strategy", "buru", true) {}
-    };
-
-    class BuruDisableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        BuruDisableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "disable buru strategy", "buru", false) {}
-    };
-
-    class AyamissEnableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        AyamissEnableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "enable ayamiss strategy", "ayamiss", true) {}
-    };
-
-    class AyamissDisableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        AyamissDisableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "disable ayamiss strategy", "ayamiss", false) {}
-    };
-
-    class OssirianEnableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        OssirianEnableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "enable ossirian strategy", "ossirian", true) {}
-    };
-
-    class OssirianDisableFightStrategyAction : public AQ20ChangeCombatStrategyAction
-    {
-    public:
-        OssirianDisableFightStrategyAction(PlayerbotAI* ai)
-            : AQ20ChangeCombatStrategyAction(ai, "disable ossirian strategy", "ossirian", false) {}
-    };
+ 
 
     // ------------------------------------------------------------
     // Shared AQ20 action helper
@@ -184,13 +91,17 @@ namespace ai
 
         bool IsCurrentTarget(Unit* target)
         {
-            if (!target)
+            if (!target || !target->IsAlive())
                 return false;
 
             Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            return currentTarget &&
-                   currentTarget->IsAlive() &&
-                   currentTarget->GetObjectGuid() == target->GetObjectGuid();
+            if (!currentTarget || !currentTarget->IsAlive())
+                return false;
+
+            if (AI_VALUE2(bool, "invalid target", "current target"))
+                return false;
+
+            return currentTarget->GetObjectGuid() == target->GetObjectGuid();
         }
 
         bool SetCurrentTarget(Unit* target)
@@ -206,16 +117,30 @@ namespace ai
             return true;
         }
 
-        bool SelectRtiOrCurrent(std::string const& icon, Unit* target)
+        bool SelectRtiTarget(std::string const& icon, Unit* target)
         {
             if (!target || !target->IsAlive())
                 return false;
 
             bool changed = false;
+
             changed |= SetTargetIcon(icon, target);
-            changed |= SetRti(icon);
+
+            Value<std::string>* rti = context->GetValue<std::string>("rti");
+            if (rti && rti->Get() != icon)
+            {
+                rti->Set(icon);
+                changed = true;
+            }
+
             changed |= SetCurrentTarget(target);
+
             return changed;
+        }
+
+        bool SelectRtiOrCurrent(std::string const& icon, Unit* target)
+        {
+            return SelectRtiTarget(icon, target);
         }
 
         bool IsBossVictimSelf(uint32 bossEntry)
@@ -243,6 +168,17 @@ namespace ai
         {
             return FindAliveCreature(entry) != nullptr;
         }
+
+        bool IsNonHealerMelee()
+        {
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (ai->IsRanged(bot))
+                return false;
+
+            return true;
+        }
     };
 
     // ------------------------------------------------------------
@@ -261,32 +197,68 @@ namespace ai
     public:
         TauntKurinnaxxAction(PlayerbotAI* ai) : CastSpellAction(ai, "taunt") {}
 
-        std::string GetTargetName() override { return "creature id"; }
-        std::string GetTargetQualifier() override { return std::to_string(AQ20::NPC_KURINNAXX); }
-
         bool isUseful() override
         {
             if (!ai->IsTank(bot))
                 return false;
 
             Unit* boss = DungeonTargetHelper::FindAliveCreature(ai, AQ20::NPC_KURINNAXX);
-            if (!boss)
+            if (!IsValidBoss(boss))
                 return false;
 
-            Unit* victim = nullptr;
-#ifdef CMANGOS
-            victim = boss->GetVictim();
-#else
-            victim = boss->getVictim();
-#endif
+            Unit* victim = GetVictim(boss);
+            if (!victim)
+                return false;
 
-            if (victim == bot)
+            if (victim->GetObjectGuid() == bot->GetObjectGuid())
                 return false;
 
             if (ai->HasAura(AQ20::SPELL_KURINNAXX_MORTAL_WOUND, bot))
                 return false;
 
-            return CastSpellAction::isUseful();
+            return ai->CanCastSpell("taunt", boss, true);
+        }
+
+        bool isPossible() override
+        {
+            Unit* boss = DungeonTargetHelper::FindAliveCreature(ai, AQ20::NPC_KURINNAXX);
+            if (!IsValidBoss(boss))
+                return false;
+
+            return ai->CanCastSpell("taunt", boss, true);
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* boss = DungeonTargetHelper::FindAliveCreature(ai, AQ20::NPC_KURINNAXX);
+            if (!IsValidBoss(boss))
+                return false;
+
+            return ai->CastSpell("taunt", boss);
+        }
+
+    protected:
+        std::string GetReachActionName() override { return ""; }
+
+    private:
+        bool IsValidBoss(Unit* boss)
+        {
+            return boss &&
+                   boss->IsAlive() &&
+                   boss->IsInWorld() &&
+                   boss->GetMapId() == bot->GetMapId();
+        }
+
+        Unit* GetVictim(Unit* unit)
+        {
+            if (!unit)
+                return nullptr;
+
+#ifdef CMANGOS
+            return unit->GetVictim();
+#else
+            return unit->getVictim();
+#endif
         }
     };
 
@@ -460,7 +432,7 @@ namespace ai
             if (!add || !add->IsAlive())
                 return false;
 
-            return SelectRtiOrCurrent("skull", add);
+            return SelectRtiTarget("skull", add);
         }
 
     private:
@@ -509,7 +481,7 @@ namespace ai
             if (!egg || !egg->IsAlive())
                 return false;
 
-            return SelectRtiOrCurrent("cross", egg);
+            return SelectRtiTarget("cross", egg);
         }
 
     private:
@@ -552,13 +524,63 @@ namespace ai
             if (!boss)
                 return false;
 
-            return SelectRtiOrCurrent("skull", boss);
+            return SelectRtiTarget("skull", boss);
         }
     };
 
     // ------------------------------------------------------------
     // Ayamiss
     // ------------------------------------------------------------
+
+    class WarlockTankAyamissAction : public AQ20RaidIconActionBase
+    {
+    public:
+        WarlockTankAyamissAction(PlayerbotAI* ai) : AQ20RaidIconActionBase(ai, "warlock tank ayamiss") {}
+
+        bool isUseful() override
+        {
+            if (bot->getClass() != CLASS_WARLOCK)
+                return false;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            if (!boss || !boss->IsAlive())
+                return false;
+
+            if (GetPoisonStingerStacks() >= 18)
+                return false;
+
+            return ai->CanCastSpell("searing pain", boss, true) ||
+                   ai->CanCastSpell("shadow bolt", boss, true) ||
+                   ai->CanCastSpell("corruption", boss, true);
+        }
+
+        bool Execute(Event& event) override
+        {
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            if (!boss || !boss->IsAlive())
+                return false;
+
+            bool changed = SelectRtiTarget("cross", boss);
+
+            if (ai->CanCastSpell("searing pain", boss, true))
+                return ai->CastSpell("searing pain", boss) || changed;
+
+            if (ai->CanCastSpell("corruption", boss, true))
+                return ai->CastSpell("corruption", boss) || changed;
+
+            if (ai->CanCastSpell("shadow bolt", boss, true))
+                return ai->CastSpell("shadow bolt", boss) || changed;
+
+            return changed;
+        }
+
+    private:
+        uint32 GetPoisonStingerStacks()
+        {
+            Aura* aura = ai->GetAura(AQ20::SPELL_AYAMISS_POISON_STINGER, bot);
+            return aura ? aura->GetStackAmount() : 0;
+        }
+    };
 
     class SelectAyamissLarvaAction : public AQ20RaidIconActionBase
     {
@@ -567,7 +589,8 @@ namespace ai
 
         bool isUseful() override
         {
-            if (ai->IsHeal(bot))
+            // Only non-healer melee bots attack larvae.
+            if (!IsNonHealerMelee())
                 return false;
 
             Unit* larva = GetBestLarva();
@@ -582,11 +605,15 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            // Only non-healer melee bots attack larvae.
+            if (!IsNonHealerMelee())
+                return false;
+
             Unit* larva = GetBestLarva();
             if (!larva || !larva->IsAlive())
                 return false;
 
-            return SelectRtiOrCurrent("skull", larva);
+            return SelectRtiTarget("skull", larva);
         }
 
     private:
@@ -610,13 +637,19 @@ namespace ai
             if (ai->IsHeal(bot))
                 return false;
 
-            if (HasAliveCreature(AQ20::NPC_HIVEZARA_LARVA))
+            // Warlocks use the dedicated warlock-tank action.
+            if (bot->getClass() == CLASS_WARLOCK)
                 return false;
 
             Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
             if (!boss)
                 return false;
 
+            // Melee should stay on larvae while larvae exist.
+            if (!ai->IsRanged(bot) && HasAliveCreature(AQ20::NPC_HIVEZARA_LARVA))
+                return false;
+
+            // Before Ayamiss lands, melee cannot usefully hit her.
             if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
                 return false;
 
@@ -628,14 +661,23 @@ namespace ai
 
         bool Execute(Event& event) override
         {
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (bot->getClass() == CLASS_WARLOCK)
+                return false;
+
             Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
             if (!boss)
+                return false;
+
+            if (!ai->IsRanged(bot) && HasAliveCreature(AQ20::NPC_HIVEZARA_LARVA))
                 return false;
 
             if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
                 return false;
 
-            return SelectRtiOrCurrent("cross", boss);
+            return SelectRtiTarget("cross", boss);
         }
     };
 
@@ -647,8 +689,11 @@ namespace ai
 
         bool isUseful() override
         {
+            if (bot->getClass() != CLASS_WARLOCK)
+                return false;
+
             Aura* aura = ai->GetAura(AQ20::SPELL_AYAMISS_POISON_STINGER, bot);
-            return aura && aura->GetStackAmount() >= 20;
+            return aura && aura->GetStackAmount() >= 18;
         }
     };
 
@@ -790,7 +835,7 @@ namespace ai
             if (!boss)
                 return false;
 
-            return SelectRtiOrCurrent("skull", boss);
+            return SelectRtiTarget("skull", boss);
         }
     };
 
@@ -803,31 +848,32 @@ namespace ai
     public:
         AhnQirajRuinsActionContext()
         {
-            creators["enable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new AQ20EnableDungeonStrategyAction(ai); };
-            creators["disable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new AQ20DisableDungeonStrategyAction(ai); };
+            creators["enable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable ahnqiraj ruins strategy", "+ahnqiraj ruins"); };
+            creators["disable ahnqiraj ruins strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable ahnqiraj ruins strategy", "-ahnqiraj ruins"); };
 
-            creators["enable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new KurinnaxxEnableFightStrategyAction(ai); };
-            creators["disable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new KurinnaxxDisableFightStrategyAction(ai); };
+            creators["enable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable kurinnaxx strategy", "+kurinnaxx"); };
+            creators["disable kurinnaxx strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable kurinnaxx strategy", "-kurinnaxx"); };
             creators["move away from kurinnaxx sand trap"] = [](PlayerbotAI* ai) { return new MoveAwayFromKurinnaxxSandTrapAction(ai); };
             creators["taunt kurinnaxx"] = [](PlayerbotAI* ai) { return new TauntKurinnaxxAction(ai); };
             creators["kurinnaxx tank retreat"] = [](PlayerbotAI* ai) { return new KurinnaxxTankRetreatAction(ai); };
 
-            creators["enable buru strategy"] = [](PlayerbotAI* ai) { return new BuruEnableFightStrategyAction(ai); };
-            creators["disable buru strategy"] = [](PlayerbotAI* ai) { return new BuruDisableFightStrategyAction(ai); };
+            creators["enable buru strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable buru strategy", "+buru"); };
+            creators["disable buru strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable buru strategy", "-buru"); };
             creators["move to buru egg"] = [](PlayerbotAI* ai) { return new MoveToBuruEggAction(ai); };
             creators["mark nearest buru egg"] = [](PlayerbotAI* ai) { return new MarkNearestBuruEggAction(ai); };
             creators["select buru add"] = [](PlayerbotAI* ai) { return new SelectBuruAddAction(ai); };
             creators["select buru egg"] = [](PlayerbotAI* ai) { return new SelectBuruEggAction(ai); };
             creators["select buru boss"] = [](PlayerbotAI* ai) { return new SelectBuruBossAction(ai); };
 
-            creators["enable ayamiss strategy"] = [](PlayerbotAI* ai) { return new AyamissEnableFightStrategyAction(ai); };
-            creators["disable ayamiss strategy"] = [](PlayerbotAI* ai) { return new AyamissDisableFightStrategyAction(ai); };
+            creators["enable ayamiss strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable ayamiss strategy", "+ayamiss"); };
+            creators["disable ayamiss strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable ayamiss strategy", "-ayamiss"); };
             creators["select ayamiss larva"] = [](PlayerbotAI* ai) { return new SelectAyamissLarvaAction(ai); };
             creators["select ayamiss boss"] = [](PlayerbotAI* ai) { return new SelectAyamissBossAction(ai); };
+            creators["warlock tank ayamiss"] = [](PlayerbotAI* ai) { return new WarlockTankAyamissAction(ai); };
             creators["ayamiss stinger retreat"] = [](PlayerbotAI* ai) { return new AyamissStingerRetreatAction(ai); };
 
-            creators["enable ossirian strategy"] = [](PlayerbotAI* ai) { return new OssirianEnableFightStrategyAction(ai); };
-            creators["disable ossirian strategy"] = [](PlayerbotAI* ai) { return new OssirianDisableFightStrategyAction(ai); };
+            creators["enable ossirian strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable ossirian strategy", "+ossirian"); };
+            creators["disable ossirian strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable ossirian strategy", "-ossirian"); };
             creators["move to ossirian crystal"] = [](PlayerbotAI* ai) { return new MoveToOssirianCrystalAction(ai); };
             creators["use ossirian crystal"] = [](PlayerbotAI* ai) { return new UseOssirianCrystalAction(ai); };
             creators["select ossirian boss"] = [](PlayerbotAI* ai) { return new SelectOssirianBossAction(ai); };

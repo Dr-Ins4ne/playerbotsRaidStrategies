@@ -10,10 +10,10 @@ namespace ai
     // Kurinnaxx
     // ------------------------------------------------------------
 
-    class KurinaxxSandTrapTrigger : public CloseToGameObjectHazardTrigger
+    class KurinnaxxSandTrapTrigger : public CloseToGameObjectHazardTrigger
     {
     public:
-        KurinaxxSandTrapTrigger(PlayerbotAI* ai)
+        KurinnaxxSandTrapTrigger(PlayerbotAI* ai)
             : CloseToGameObjectHazardTrigger(ai, "kurinnaxx sand trap close", 180630, 8.0f, 60) {}
     };
 
@@ -26,17 +26,17 @@ namespace ai
         bool IsActive() override
         {
             Unit* boss = FindAliveCreature(AQ20::NPC_KURINNAXX);
-            if (!boss)
+            if (!boss || !boss->IsInWorld() || boss->GetMapId() != bot->GetMapId())
                 return false;
 
             Unit* victim = nullptr;
-#ifdef CMANGOS
+    #ifdef CMANGOS
             victim = boss->GetVictim();
-#else
+    #else
             victim = boss->getVictim();
-#endif
+    #endif
 
-            if (!victim)
+            if (!victim || !victim->IsInWorld() || victim->GetMapId() != bot->GetMapId())
                 return false;
 
             Aura* aura = ai->GetAura(AQ20::SPELL_KURINNAXX_MORTAL_WOUND, victim);
@@ -123,6 +123,7 @@ namespace ai
             return GetHealthPct(boss) <= 20.0f;
         }
     };
+
     // ------------------------------------------------------------
     // Ayamiss
     // ------------------------------------------------------------
@@ -135,6 +136,14 @@ namespace ai
 
         bool IsActive() override
         {
+            // Only non-healer melee bots should react to larvae.
+            // This prevents ranged DPS and warlocks from running attack rti target on larva skull.
+            if (ai->IsHeal(bot))
+                return false;
+
+            if (ai->IsRanged(bot))
+                return false;
+
             return IsAlive(AQ20::NPC_HIVEZARA_LARVA);
         }
     };
@@ -147,7 +156,49 @@ namespace ai
 
         bool IsActive() override
         {
-            return IsAlive(AQ20::NPC_AYAMISS);
+            if (ai->IsHeal(bot))
+                return false;
+
+            // Warlocks use the dedicated warlock-tank trigger/action.
+            if (bot->getClass() == CLASS_WARLOCK)
+                return false;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            if (!boss || !boss->IsInWorld() || boss->GetMapId() != bot->GetMapId())
+                return false;
+
+            // Melee should stay on larvae while larvae exist.
+            if (!ai->IsRanged(bot) && IsAlive(AQ20::NPC_HIVEZARA_LARVA))
+                return false;
+
+            // In phase 1 Ayamiss is flying; melee cannot usefully hit her.
+            if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
+                return false;
+
+            return true;
+        }
+    };
+
+    class AyamissWarlockTankNeededTrigger : public DungeonCreatureTrigger
+    {
+    public:
+        AyamissWarlockTankNeededTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "ayamiss warlock tank needed", 1) {}
+
+        bool IsActive() override
+        {
+            if (bot->getClass() != CLASS_WARLOCK)
+                return false;
+
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            if (!boss || !boss->IsInWorld() || boss->GetMapId() != bot->GetMapId())
+                return false;
+
+            Aura* aura = ai->GetAura(AQ20::SPELL_AYAMISS_POISON_STINGER, bot);
+            if (aura && aura->GetStackAmount() >= 18)
+                return false;
+
+            return true;
         }
     };
 
@@ -159,11 +210,13 @@ namespace ai
 
         bool IsActive() override
         {
+            if (bot->getClass() != CLASS_WARLOCK)
+                return false;
+
             Aura* aura = ai->GetAura(AQ20::SPELL_AYAMISS_POISON_STINGER, bot);
-            return aura && aura->GetStackAmount() >= 20;
+            return aura && aura->GetStackAmount() >= 18;
         }
     };
-
     // ------------------------------------------------------------
     // Ossirian
     // ------------------------------------------------------------
@@ -240,7 +293,7 @@ namespace ai
             creators["start ossirian fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN); };
             creators["end ossirian fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end ossirian fight", "ossirian", AQ20::NPC_OSSIRIAN); };
 
-            creators["kurinnaxx sand trap close"] = [](PlayerbotAI* ai) { return new KurinaxxSandTrapTrigger(ai); };
+            creators["kurinnaxx sand trap close"] = [](PlayerbotAI* ai) { return new KurinnaxxSandTrapTrigger(ai); };
             creators["kurinnaxx mortal wound high"] = [](PlayerbotAI* ai) { return new KurinnaxxMortalWoundHighTrigger(ai); };
 
             creators["buru focused me"] = [](PlayerbotAI* ai) { return new BuruFocusedMeTrigger(ai); };
@@ -250,6 +303,7 @@ namespace ai
 
             creators["ayamiss larva alive"] = [](PlayerbotAI* ai) { return new AyamissLarvaAliveTrigger(ai); };
             creators["ayamiss boss available"] = [](PlayerbotAI* ai) { return new AyamissBossAvailableTrigger(ai); };
+            creators["ayamiss warlock tank needed"] = [](PlayerbotAI* ai) { return new AyamissWarlockTankNeededTrigger(ai); };
             creators["ayamiss poison stinger high"] = [](PlayerbotAI* ai) { return new AyamissPoisonStingerHighTrigger(ai); };
 
             creators["ossirian needs crystal"] = [](PlayerbotAI* ai) { return new OssirianNeedsCrystalTrigger(ai); };

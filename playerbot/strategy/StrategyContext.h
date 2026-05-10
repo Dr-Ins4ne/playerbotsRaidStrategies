@@ -56,6 +56,7 @@
 #include "raids/KarazhanDungeonStrategies.h"
 #include "raids/NaxxramasDungeonStrategies.h"
 #include "raids/ZulGurubDungeonStrategies.h"
+#include "raids/AhnQirajTempleDungeonStrategies.h"
 
 namespace ai
 {
@@ -169,6 +170,7 @@ namespace ai
             creators["molten core"] = [](PlayerbotAI* ai) { return new MoltenCoreDungeonStrategy(ai); };
             creators["blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairDungeonStrategy(ai); };
             creators["ahnqiraj ruins"] = [](PlayerbotAI* ai) { return new AhnQirajRuinsDungeonStrategy(ai); };
+            creators["ahnqiraj temple"] = [](PlayerbotAI* ai) { return new AhnQirajTempleDungeonStrategy(ai); };
             creators["zul gurub"] = [](PlayerbotAI* ai) { return new ZulGurubDungeonStrategy(ai); };
             creators["karazhan"] = [](PlayerbotAI* ai) { return new KarazhanDungeonStrategy(ai); };
             creators["naxxramas"] = [](PlayerbotAI* ai) { return new NaxxramasDungeonStrategy(ai); };
@@ -200,6 +202,8 @@ namespace ai
             creators["buru"] = [](PlayerbotAI* ai) { return new BuruFightStrategy(ai); };
             creators["ayamiss"] = [](PlayerbotAI* ai) { return new AyamissFightStrategy(ai); };
             creators["ossirian"] = [](PlayerbotAI* ai) { return new OssirianFightStrategy(ai); };
+
+            creators["skeram"] = [](PlayerbotAI* ai){ return new SkeramFightStrategy(ai); };
 
         
         }

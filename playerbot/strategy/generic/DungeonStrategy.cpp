@@ -30,6 +30,10 @@ void DungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "enter aq20",
         NextAction::array(0, new NextAction("enable ahnqiraj ruins strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "enter aq40",
+        NextAction::array(0, new NextAction("enable ahnqiraj temple strategy", 100.0f), NULL)));
 }
 
 void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -81,4 +85,12 @@ void DungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "leave aq20",
         NextAction::array(0, new NextAction("disable ahnqiraj ruins strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "enter aq40",
+        NextAction::array(0, new NextAction("enable ahnqiraj temple strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "leave aq40",
+        NextAction::array(0, new NextAction("disable ahnqiraj temple strategy", 100.0f), NULL)));
 }

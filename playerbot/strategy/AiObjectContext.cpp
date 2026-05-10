@@ -21,6 +21,8 @@
 #include "raids/ZulGurubDungeonActions.h"
 #include "raids/OnyxiasLairDungeonTriggers.h"
 #include "raids/OnyxiasLairDungeonActions.h"
+#include "triggers/AhnQirajTempleDungeonTriggers.h"
+#include "actions/AhnQirajTempleDungeonActions.h"
 using namespace ai;
 
 AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)
@@ -47,6 +49,9 @@ AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)
 
     actionContexts.Add(new AhnQirajRuinsActionContext());
     triggerContexts.Add(new AhnQirajRuinsTriggerContext());
+
+    actionContexts.Add(new AhnQirajTempleActionContext());
+    triggerContexts.Add(new AhnQirajTempleTriggerContext());
 
     actionContexts.Add(new ZulGurubActionContext());
     triggerContexts.Add(new ZulGurubTriggerContext());

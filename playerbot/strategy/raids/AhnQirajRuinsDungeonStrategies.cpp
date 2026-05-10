@@ -138,30 +138,33 @@ void BuruFightStrategy::InitDeadTriggers(std::list<TriggerNode*>& triggers)
 
 void AyamissFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Highest priority: larvae. If they reach the shrine/player, they become the real problem.
+    // Sacrifice/altar teleport recovery: the bot itself is on the altar and must run out.
     triggers.push_back(new TriggerNode(
-        "ayamiss larva alive",
+        "bot on ayamiss altar",
         NextAction::array(0,
-            new NextAction("select ayamiss larva", 100.0f),
-            new NextAction("attack rti target", 95.0f),
+            new NextAction("move out of ayamiss altar", 120.0f),
             NULL)));
-    
+
     triggers.push_back(new TriggerNode(
         "ayamiss warlock tank needed",
         NextAction::array(0,
             new NextAction("warlock tank ayamiss", 105.0f),
             NULL)));
 
-    // Ranged can hit Ayamiss in phase 1; melee will skip until she lands below 70%.
+    triggers.push_back(new TriggerNode(
+        "ayamiss melee larva target needed",
+        NextAction::array(0,
+            new NextAction("select ayamiss larva", 100.0f),
+            new NextAction("attack rti target", 99.0f),
+            NULL)));
+
     triggers.push_back(new TriggerNode(
         "ayamiss boss available",
         NextAction::array(0,
             new NextAction("select ayamiss boss", 80.0f),
-            new NextAction("attack rti target", 75.0f),
+            new NextAction("attack rti target", 79.0f),
             NULL)));
 
-    // Soft tank/agro rotation for poison-stinger stacks.
-    // Ayamiss is not a clean taunt-swap boss; this simply lets the stacked target drop pressure.
     triggers.push_back(new TriggerNode(
         "ayamiss poison stinger high",
         NextAction::array(0,

@@ -35,6 +35,14 @@ namespace ai
         static constexpr uint32 SPELL_KURINNAXX_MORTAL_WOUND = 25646;
         static constexpr uint32 SPELL_AYAMISS_POISON_STINGER = 25748;
         static constexpr uint32 SPELL_OSSIRIAN_STRENGTH = 25176;
+
+        static constexpr float AYAMISS_ALTAR_X = -9716.0f;
+        static constexpr float AYAMISS_ALTAR_Y = 1519.0f;
+        static constexpr float AYAMISS_ALTAR_Z = 27.5f;
+
+        static constexpr float AYAMISS_ALTAR_EXIT_X = -9694.0f;
+        static constexpr float AYAMISS_ALTAR_EXIT_Y = 1542.0f;
+        static constexpr float AYAMISS_ALTAR_EXIT_Z = 21.44f;
     }
 
  
@@ -59,6 +67,22 @@ namespace ai
 #else
             return unit->getVictim();
 #endif
+        }
+
+
+        bool IsAyamissFlying()
+        {
+            Unit* boss = FindAliveCreature(AQ20::NPC_AYAMISS);
+            return boss && GetHealthPct(boss) > 70.0f;
+        }
+
+        bool IsCurrentTargetEntry(uint32 entry)
+        {
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            return currentTarget &&
+                currentTarget->IsAlive() &&
+                currentTarget->GetEntry() == entry &&
+                !AI_VALUE2(bool, "invalid target", "current target");
         }
 
         Unit* FindNearestAliveCreature(uint32 entry, Unit* reference = nullptr)
@@ -532,6 +556,53 @@ namespace ai
     // Ayamiss
     // ------------------------------------------------------------
 
+    class MoveOutOfAyamissAltarAction : public MovementAction
+    {
+    public:
+        MoveOutOfAyamissAltarAction(PlayerbotAI* ai)
+            : MovementAction(ai, "move out of ayamiss altar") {}
+
+        bool isUseful() override
+        {
+            return IsBotOnAltar();
+        }
+
+        bool Execute(Event& event) override
+        {
+            if (!IsBotOnAltar())
+                return false;
+
+            if (bot->GetDistance(AQ20::AYAMISS_ALTAR_EXIT_X, AQ20::AYAMISS_ALTAR_EXIT_Y, AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+                return true;
+
+            return MoveTo(
+                bot->GetMapId(),
+                AQ20::AYAMISS_ALTAR_EXIT_X,
+                AQ20::AYAMISS_ALTAR_EXIT_Y,
+                AQ20::AYAMISS_ALTAR_EXIT_Z,
+                false,
+                true,
+                false,
+                true);
+        }
+
+    private:
+        bool IsBotOnAltar()
+        {
+            if (!bot || !bot->IsInWorld())
+                return false;
+
+            if (bot->GetMapId() != AQ20::MAP_ID)
+                return false;
+
+            if (bot->GetDistance(AQ20::AYAMISS_ALTAR_EXIT_X, AQ20::AYAMISS_ALTAR_EXIT_Y, AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+                return false;
+
+            return bot->GetDistance(AQ20::AYAMISS_ALTAR_X, AQ20::AYAMISS_ALTAR_Y, AQ20::AYAMISS_ALTAR_Z) <= 30.0f &&
+                bot->GetPositionZ() >= 24.0f;
+        }
+    };
+
     class WarlockTankAyamissAction : public AQ20RaidIconActionBase
     {
     public:
@@ -871,7 +942,8 @@ namespace ai
             creators["select ayamiss boss"] = [](PlayerbotAI* ai) { return new SelectAyamissBossAction(ai); };
             creators["warlock tank ayamiss"] = [](PlayerbotAI* ai) { return new WarlockTankAyamissAction(ai); };
             creators["ayamiss stinger retreat"] = [](PlayerbotAI* ai) { return new AyamissStingerRetreatAction(ai); };
-
+            creators["move out of ayamiss altar"] = [](PlayerbotAI* ai) { return new MoveOutOfAyamissAltarAction(ai); };
+            
             creators["enable ossirian strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable ossirian strategy", "+ossirian"); };
             creators["disable ossirian strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable ossirian strategy", "-ossirian"); };
             creators["move to ossirian crystal"] = [](PlayerbotAI* ai) { return new MoveToOssirianCrystalAction(ai); };

@@ -128,23 +128,31 @@ namespace ai
     // Ayamiss
     // ------------------------------------------------------------
 
-    class AyamissLarvaAliveTrigger : public DungeonCreatureTrigger
+    class AyamissMeleeLarvaTargetNeededTrigger : public DungeonCreatureTrigger
     {
     public:
-        AyamissLarvaAliveTrigger(PlayerbotAI* ai)
-            : DungeonCreatureTrigger(ai, "ayamiss larva alive", 1) {}
+        AyamissMeleeLarvaTargetNeededTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "ayamiss melee larva target needed", 1) {}
 
         bool IsActive() override
         {
-            // Only non-healer melee bots should react to larvae.
-            // This prevents ranged DPS and warlocks from running attack rti target on larva skull.
             if (ai->IsHeal(bot))
                 return false;
 
             if (ai->IsRanged(bot))
                 return false;
 
-            return IsAlive(AQ20::NPC_HIVEZARA_LARVA);
+            if (!IsAlive(AQ20::NPC_HIVEZARA_LARVA))
+                return false;
+
+            Unit* currentTarget = AI_VALUE(Unit*, "current target");
+            if (!currentTarget || !currentTarget->IsAlive())
+                return true;
+
+            if (AI_VALUE2(bool, "invalid target", "current target"))
+                return true;
+
+            return currentTarget->GetEntry() != AQ20::NPC_HIVEZARA_LARVA;
         }
     };
 
@@ -176,6 +184,28 @@ namespace ai
                 return false;
 
             return true;
+        }
+    };
+
+    class BotOnAyamissAltarTrigger : public Trigger
+    {
+    public:
+        BotOnAyamissAltarTrigger(PlayerbotAI* ai)
+            : Trigger(ai, "bot on ayamiss altar", 1) {}
+
+        bool IsActive() override
+        {
+            if (!bot || !bot->IsInWorld())
+                return false;
+
+            if (bot->GetMapId() != AQ20::MAP_ID)
+                return false;
+
+            if (bot->GetDistance(AQ20::AYAMISS_ALTAR_EXIT_X, AQ20::AYAMISS_ALTAR_EXIT_Y, AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+                return false;
+
+            return bot->GetDistance(AQ20::AYAMISS_ALTAR_X, AQ20::AYAMISS_ALTAR_Y, AQ20::AYAMISS_ALTAR_Z) <= 30.0f &&
+                bot->GetPositionZ() >= 24.0f;
         }
     };
 
@@ -301,10 +331,11 @@ namespace ai
             creators["buru egg available"] = [](PlayerbotAI* ai) { return new BuruEggAvailableTrigger(ai); };
             creators["buru shell broken"] = [](PlayerbotAI* ai) { return new BuruShellBrokenTrigger(ai); };
 
-            creators["ayamiss larva alive"] = [](PlayerbotAI* ai) { return new AyamissLarvaAliveTrigger(ai); };
+            creators["ayamiss melee larva target needed"] = [](PlayerbotAI* ai) { return new AyamissMeleeLarvaTargetNeededTrigger(ai); };
             creators["ayamiss boss available"] = [](PlayerbotAI* ai) { return new AyamissBossAvailableTrigger(ai); };
             creators["ayamiss warlock tank needed"] = [](PlayerbotAI* ai) { return new AyamissWarlockTankNeededTrigger(ai); };
             creators["ayamiss poison stinger high"] = [](PlayerbotAI* ai) { return new AyamissPoisonStingerHighTrigger(ai); };
+            creators["bot on ayamiss altar"] = [](PlayerbotAI* ai) { return new BotOnAyamissAltarTrigger(ai); };
 
             creators["ossirian needs crystal"] = [](PlayerbotAI* ai) { return new OssirianNeedsCrystalTrigger(ai); };
             creators["ossirian crystal close"] = [](PlayerbotAI* ai) { return new OssirianCrystalCloseTrigger(ai); };

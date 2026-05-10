@@ -23,6 +23,6 @@ namespace ai
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
-        void InitMultipliers(std::list<Multiplier*>& multipliers) override;
+        void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
     };
 }

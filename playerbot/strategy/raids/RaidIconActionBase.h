@@ -2,8 +2,6 @@
 
 #include "../actions/DungeonActions.h"
 #include "DungeonTargetHelper.h"
-#include "playerbot/strategy/values/RtiTargetValue.h"
-#include "Groups/Group.h"
 
 #include <algorithm>
 #include <list>
@@ -54,101 +52,97 @@ namespace ai
             return DungeonTargetHelper::HasAnyAura(ai, target, auraNames);
         }
 
-
-        // ---------------------------------------------------------------------
-        // RTI / raid-icon target helpers
-        // ---------------------------------------------------------------------
-
-        bool ShouldSkipDpsRtiSelection()
+        bool ContainsUnit(std::vector<Unit*> const& units, Unit* unit)
         {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return true;
+            return DungeonTargetHelper::ContainsUnit(units, unit);
+        }
 
-            if (ai->IsHeal(bot))
-                return true;
+        // ---------------------------------------------------------------------
+        // Current target / RTI wrappers
+        // ---------------------------------------------------------------------
 
-            if (ai->IsTank(bot))
-                return true;
+        Unit* GetCurrentTarget()
+        {
+            return DungeonTargetHelper::GetCurrentTarget(ai);
+        }
 
-            return false;
+        bool IsCurrentTarget(Unit* target)
+        {
+            return DungeonTargetHelper::IsCurrentTarget(ai, target);
+        }
+
+        bool SetCurrentTarget(Unit* target)
+        {
+            return DungeonTargetHelper::SetCurrentTarget(ai, target);
+        }
+
+        Unit* GetRtiTarget()
+        {
+            return DungeonTargetHelper::GetRtiTarget(ai);
         }
 
         bool SetCurrentTargetFromRti()
         {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return false;
+            return DungeonTargetHelper::SetCurrentTargetFromRti(ai);
+        }
 
-            Unit* target = AI_VALUE(Unit*, "rti target");
+        bool HasRti(std::string const& icon)
+        {
+            return DungeonTargetHelper::HasRti(ai, icon);
+        }
+
+        bool SetRti(std::string const& icon)
+        {
+            return DungeonTargetHelper::SetRti(ai, icon);
+        }
+
+        bool ShouldSkipDpsRtiSelection()
+        {
+            return DungeonTargetHelper::ShouldSkipDpsRtiSelection(ai);
+        }
+
+        bool NeedsDpsRtiSelection(std::string const& icon, Unit* target)
+        {
+            return DungeonTargetHelper::NeedsDpsRtiSelection(ai, icon, target);
+        }
+
+        bool IsDpsRtiSelected(std::string const& icon, Unit* target)
+        {
             if (!target)
                 return false;
 
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget &&
-                currentTarget->IsAlive() &&
-                currentTarget->GetObjectGuid() == target->GetObjectGuid())
-            {
-                return false;
-            }
-
-            context->GetValue<Unit*>("current target")->Set(target);
-            bot->SetSelectionGuid(target->GetObjectGuid());
-
-            return true;
+            return HasCorrectTargetIcon(icon, target) &&
+                   HasRti(icon) &&
+                   IsCurrentTarget(target);
         }
 
-        bool SetRti(std::string const& rti)
-        {
-            Value<std::string>* value = context->GetValue<std::string>("rti");
-            if (!value)
-                return false;
-
-            if (value->Get() == rti)
-                return false;
-
-            value->Set(rti);
-            SetCurrentTargetFromRti();
-
-            return true;
-        }
+        // ---------------------------------------------------------------------
+        // Raid icon wrappers
+        // ---------------------------------------------------------------------
 
         bool SetTargetIcon(std::string const& icon, Unit* target)
         {
-            if (!target)
-                return false;
-
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return false;
-
-            Group* group = bot->GetGroup();
-            if (!group)
-                return false;
-
-            if (bot->InBattleGround())
-                return false;
-
-            int index = RtiTargetValue::GetRtiIndex(icon);
-            if (index < 0)
-                return false;
-
-            ObjectGuid currentGuid = group->GetTargetIcon(index);
-            if (currentGuid == target->GetObjectGuid())
-                return false;
-
-#ifndef MANGOSBOT_TWO
-            group->SetTargetIcon(index, target->GetObjectGuid());
-#else
-            group->SetTargetIcon(index, bot->GetObjectGuid(), target->GetObjectGuid());
-#endif
-
-            return true;
+            return DungeonTargetHelper::SetTargetIcon(ai, icon, target);
         }
 
         bool SetTargetIcon(std::string const& icon, uint32 entry)
         {
             return SetTargetIcon(icon, FindAliveCreature(entry));
+        }
+
+        bool HasCorrectTargetIcon(std::string const& icon, Unit* target)
+        {
+            return DungeonTargetHelper::HasCorrectTargetIcon(ai, icon, target);
+        }
+
+        bool HasCorrectTargetIcon(std::string const& icon, uint32 entry)
+        {
+            return HasCorrectTargetIcon(icon, FindAliveCreature(entry));
+        }
+
+        Unit* GetTargetIconUnit(std::string const& icon)
+        {
+            return DungeonTargetHelper::GetTargetIconUnit(ai, icon);
         }
 
         bool SetTargetIconsByEntry(std::vector<std::pair<std::string, uint32>> const& assignments)
@@ -184,55 +178,6 @@ namespace ai
             return SetTargetIconsForCreatures(icons, FindAliveCreatures(entry));
         }
 
-        bool HasCorrectTargetIcon(std::string const& icon, Unit* target)
-        {
-            if (!target)
-                return false;
-
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return false;
-
-            Group* group = bot->GetGroup();
-            if (!group)
-                return false;
-
-            if (bot->InBattleGround())
-                return false;
-
-            int index = RtiTargetValue::GetRtiIndex(icon);
-            if (index < 0)
-                return false;
-
-            return group->GetTargetIcon(index) == target->GetObjectGuid();
-        }
-
-        bool HasCorrectTargetIcon(std::string const& icon, uint32 entry)
-        {
-            return HasCorrectTargetIcon(icon, FindAliveCreature(entry));
-        }
-
-        Unit* GetTargetIconUnit(std::string const& icon)
-        {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return nullptr;
-
-            Group* group = bot->GetGroup();
-            if (!group)
-                return nullptr;
-
-            int index = RtiTargetValue::GetRtiIndex(icon);
-            if (index < 0)
-                return nullptr;
-
-            ObjectGuid guid = group->GetTargetIcon(index);
-
-            // Do not use "if (!guid)" here.
-            // Some ObjectGuid implementations do not define operator!.
-            return ai->GetUnit(guid);
-        }
-
         Unit* FindFirstAliveIconTarget(std::vector<std::string> const& icons)
         {
             for (std::string const& icon : icons)
@@ -247,12 +192,35 @@ namespace ai
             return nullptr;
         }
 
+        Unit* FindFirstAliveIconTargetWithoutAuras(
+            std::vector<std::string> const& icons,
+            std::vector<std::string> const& auraNames)
+        {
+            for (std::string const& icon : icons)
+            {
+                Unit* target = GetTargetIconUnit(icon);
+                if (!target || !target->IsAlive())
+                    continue;
+
+                if (HasAnyAura(target, auraNames))
+                    continue;
+
+                return target;
+            }
+
+            return nullptr;
+        }
+
+        // ---------------------------------------------------------------------
+        // DPS RTI selection helpers
+        // ---------------------------------------------------------------------
+
         bool SelectDpsRti(std::string const& icon, Unit* target)
         {
             if (ShouldSkipDpsRtiSelection())
                 return false;
 
-            if (!target)
+            if (!target || !target->IsAlive())
                 return false;
 
             bool changed = false;
@@ -284,29 +252,35 @@ namespace ai
             return false;
         }
 
-
-        // ---------------------------------------------------------------------
-        // Generic aura / CC helpers
-        // ---------------------------------------------------------------------
-
-        Unit* FindFirstAliveIconTargetWithoutAuras(
+        bool SelectFirstAliveDpsRtiWithoutAuras(
             std::vector<std::string> const& icons,
             std::vector<std::string> const& auraNames)
         {
+            if (ShouldSkipDpsRtiSelection())
+                return false;
+
+            Unit* target = FindFirstAliveIconTargetWithoutAuras(icons, auraNames);
+            if (!target)
+                return false;
+
             for (std::string const& icon : icons)
             {
-                Unit* target = GetTargetIconUnit(icon);
-                if (!target || !target->IsAlive())
+                Unit* iconTarget = GetTargetIconUnit(icon);
+                if (!iconTarget || !iconTarget->IsAlive())
                     continue;
 
-                if (HasAnyAura(target, auraNames))
+                if (iconTarget->GetObjectGuid() != target->GetObjectGuid())
                     continue;
 
-                return target;
+                return SelectDpsRti(icon, target);
             }
 
-            return nullptr;
+            return false;
         }
+
+        // ---------------------------------------------------------------------
+        // Generic cast helpers
+        // ---------------------------------------------------------------------
 
         bool TryCastOnUnit(std::string const& spell, Unit* target)
         {
@@ -332,6 +306,10 @@ namespace ai
 
             return false;
         }
+
+        // ---------------------------------------------------------------------
+        // Generic crowd-control helpers
+        // ---------------------------------------------------------------------
 
         std::vector<std::string> GetCommonCrowdControlAuras()
         {

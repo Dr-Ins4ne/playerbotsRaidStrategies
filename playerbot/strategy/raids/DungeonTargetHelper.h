@@ -14,6 +14,71 @@ namespace ai
     class DungeonTargetHelper
     {
     public:
+
+    static Unit* GetVictim(Unit* unit)
+    {
+        if (!unit)
+            return nullptr;
+
+    #ifdef CMANGOS
+        return unit->GetVictim();
+    #else
+        return unit->getVictim();
+    #endif
+    }
+
+    static Unit* FindNearestAliveCreature(PlayerbotAI* ai, uint32 entry, Unit* reference = nullptr)
+    {
+        std::vector<Unit*> units = FindAliveCreatures(ai, entry);
+        if (units.empty())
+            return nullptr;
+
+        Player* bot = ai ? ai->GetBot() : nullptr;
+        if (!reference)
+            reference = bot;
+
+        if (!reference)
+            return nullptr;
+
+        Unit* best = nullptr;
+        float bestDistance = 999999.0f;
+
+        for (Unit* unit : units)
+        {
+            if (!unit || !unit->IsAlive())
+                continue;
+
+            float distance = reference->GetDistance(unit);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = unit;
+            }
+        }
+
+        return best;
+    }
+
+    static bool IsInvalidCurrentTarget(PlayerbotAI* ai)
+    {
+        if (!ai)
+            return true;
+
+        AiObjectContext* context = ai->GetAiObjectContext();
+        if (!context)
+            return true;
+
+        return context->GetValue<bool>("invalid target", "current target")->Get();
+    }
+
+    static bool IsCurrentTargetEntry(PlayerbotAI* ai, uint32 entry)
+    {
+        Unit* currentTarget = GetCurrentTarget(ai);
+        return currentTarget &&
+            currentTarget->IsAlive() &&
+            currentTarget->GetEntry() == entry &&
+            !IsInvalidCurrentTarget(ai);
+    }
         static Unit* FindAliveCreature(PlayerbotAI* ai, uint32 entry)
         {
             return FindCreature(ai, entry, true);
@@ -116,7 +181,199 @@ namespace ai
 
             return best;
         }
+        static bool HasRti(PlayerbotAI* ai, std::string const& icon)
+        {
+            if (!ai)
+                return false;
 
+            AiObjectContext* context = ai->GetAiObjectContext();
+            if (!context)
+                return false;
+
+            return context->GetValue<std::string>("rti")->Get() == icon;
+        }
+
+        static bool SetRti(PlayerbotAI* ai, std::string const& icon)
+        {
+            if (!ai)
+                return false;
+
+            AiObjectContext* context = ai->GetAiObjectContext();
+            if (!context)
+                return false;
+
+            Value<std::string>* value = context->GetValue<std::string>("rti");
+            if (!value)
+                return false;
+
+            bool changed = false;
+
+            if (value->Get() != icon)
+            {
+                value->Set(icon);
+                changed = true;
+            }
+
+            changed |= SetCurrentTargetFromRti(ai);
+
+            return changed;
+        }
+
+        static Unit* GetCurrentTarget(PlayerbotAI* ai)
+        {
+            return GetUnitValue(ai, "current target");
+        }
+
+        static bool IsCurrentTarget(PlayerbotAI* ai, Unit* target)
+        {
+            if (!target)
+                return false;
+
+            Unit* currentTarget = GetCurrentTarget(ai);
+            return currentTarget &&
+                currentTarget->IsAlive() &&
+                currentTarget->GetObjectGuid() == target->GetObjectGuid();
+        }
+
+        static Unit* GetRtiTarget(PlayerbotAI* ai)
+        {
+            return GetUnitValue(ai, "rti target");
+        }
+
+        static bool SetCurrentTarget(PlayerbotAI* ai, Unit* target)
+        {
+            if (!ai || !target)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            AiObjectContext* context = ai->GetAiObjectContext();
+            if (!context)
+                return false;
+
+            if (IsCurrentTarget(ai, target))
+                return false;
+
+            context->GetValue<Unit*>("current target")->Set(target);
+            bot->SetSelectionGuid(target->GetObjectGuid());
+
+            return true;
+        }
+
+        static bool SetCurrentTargetFromRti(PlayerbotAI* ai)
+        {
+            return SetCurrentTarget(ai, GetRtiTarget(ai));
+        }
+
+        static bool ShouldSkipDpsRtiSelection(PlayerbotAI* ai)
+        {
+            if (!ai)
+                return true;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return true;
+
+            if (ai->IsHeal(bot))
+                return true;
+
+            if (ai->IsTank(bot))
+                return true;
+
+            return false;
+        }
+
+        static bool HasCorrectTargetIcon(PlayerbotAI* ai, std::string const& icon, Unit* target)
+        {
+            if (!ai || !target)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            Group* group = bot->GetGroup();
+            if (!group)
+                return false;
+
+            if (bot->InBattleGround())
+                return false;
+
+            int index = RtiTargetValue::GetRtiIndex(icon);
+            if (index < 0)
+                return false;
+
+            return group->GetTargetIcon(index) == target->GetObjectGuid();
+        }
+
+        static Unit* GetTargetIconUnit(PlayerbotAI* ai, std::string const& icon)
+        {
+            if (!ai)
+                return nullptr;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return nullptr;
+
+            Group* group = bot->GetGroup();
+            if (!group)
+                return nullptr;
+
+            int index = RtiTargetValue::GetRtiIndex(icon);
+            if (index < 0)
+                return nullptr;
+
+            ObjectGuid guid = group->GetTargetIcon(index);
+            return ai->GetUnit(guid);
+        }
+
+        static bool SetTargetIcon(PlayerbotAI* ai, std::string const& icon, Unit* target)
+        {
+            if (!ai || !target)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            Group* group = bot->GetGroup();
+            if (!group)
+                return false;
+
+            if (bot->InBattleGround())
+                return false;
+
+            int index = RtiTargetValue::GetRtiIndex(icon);
+            if (index < 0)
+                return false;
+
+            ObjectGuid currentGuid = group->GetTargetIcon(index);
+            if (currentGuid == target->GetObjectGuid())
+                return false;
+
+        #ifndef MANGOSBOT_TWO
+            group->SetTargetIcon(index, target->GetObjectGuid());
+        #else
+            group->SetTargetIcon(index, bot->GetObjectGuid(), target->GetObjectGuid());
+        #endif
+
+            return true;
+        }
+
+        static bool NeedsDpsRtiSelection(PlayerbotAI* ai, std::string const& icon, Unit* target)
+        {
+            if (ShouldSkipDpsRtiSelection(ai))
+                return false;
+
+            if (!target || !target->IsAlive())
+                return false;
+
+            return !HasCorrectTargetIcon(ai, icon, target) ||
+                !HasRti(ai, icon) ||
+                !IsCurrentTarget(ai, target);
+        }
         static Unit* GetHighestHpTargetAbove(std::vector<Unit*> const& targets, float threshold)
         {
             Unit* best = nullptr;

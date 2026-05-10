@@ -41,12 +41,10 @@ void SkeramFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
             new NextAction("skeram mark real", 80.0f),
             new NextAction("skeram select real target", 79.0f),
             new NextAction("attack rti target", 78.0f),
-            new NextAction("shoot", 50.0f),
-            new NextAction("melee", 50.0f),
             NULL)));
 }
 
-void SkeramFightStrategy::InitMultipliers(std::list<Multiplier*>& multipliers)
+void SkeramFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
     multipliers.push_back(new SkeramDamageControlMultiplier(ai));
 }

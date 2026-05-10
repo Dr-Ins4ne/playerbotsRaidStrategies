@@ -8,8 +8,6 @@
 #include "DungeonTargetHelper.h"
 
 #include "playerbot/ServerFacade.h"
-#include "playerbot/strategy/values/RtiTargetValue.h"
-#include "Groups/Group.h"
 
 #include <list>
 #include <string>
@@ -45,8 +43,6 @@ namespace ai
         static constexpr float AYAMISS_ALTAR_EXIT_Z = 21.44f;
     }
 
- 
-
     // ------------------------------------------------------------
     // Shared AQ20 action helper
     // ------------------------------------------------------------
@@ -54,21 +50,14 @@ namespace ai
     class AQ20RaidIconActionBase : public RaidIconActionBase
     {
     public:
-        AQ20RaidIconActionBase(PlayerbotAI* ai, std::string name) : RaidIconActionBase(ai, name) {}
+        AQ20RaidIconActionBase(PlayerbotAI* ai, std::string name)
+            : RaidIconActionBase(ai, name) {}
 
     protected:
         Unit* GetVictim(Unit* unit)
         {
-            if (!unit)
-                return nullptr;
-
-#ifdef CMANGOS
-            return unit->GetVictim();
-#else
-            return unit->getVictim();
-#endif
+            return DungeonTargetHelper::GetVictim(unit);
         }
-
 
         bool IsAyamissFlying()
         {
@@ -78,67 +67,12 @@ namespace ai
 
         bool IsCurrentTargetEntry(uint32 entry)
         {
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            return currentTarget &&
-                currentTarget->IsAlive() &&
-                currentTarget->GetEntry() == entry &&
-                !AI_VALUE2(bool, "invalid target", "current target");
+            return DungeonTargetHelper::IsCurrentTargetEntry(ai, entry);
         }
 
         Unit* FindNearestAliveCreature(uint32 entry, Unit* reference = nullptr)
         {
-            std::vector<Unit*> units = FindAliveCreatures(entry);
-            if (units.empty())
-                return nullptr;
-
-            if (!reference)
-                reference = bot;
-
-            Unit* best = nullptr;
-            float bestDistance = 999999.0f;
-
-            for (Unit* unit : units)
-            {
-                if (!unit || !unit->IsAlive())
-                    continue;
-
-                float distance = reference ? reference->GetDistance(unit) : bot->GetDistance(unit);
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    best = unit;
-                }
-            }
-
-            return best;
-        }
-
-        bool IsCurrentTarget(Unit* target)
-        {
-            if (!target || !target->IsAlive())
-                return false;
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (!currentTarget || !currentTarget->IsAlive())
-                return false;
-
-            if (AI_VALUE2(bool, "invalid target", "current target"))
-                return false;
-
-            return currentTarget->GetObjectGuid() == target->GetObjectGuid();
-        }
-
-        bool SetCurrentTarget(Unit* target)
-        {
-            if (!target || !target->IsAlive())
-                return false;
-
-            if (IsCurrentTarget(target))
-                return false;
-
-            context->GetValue<Unit*>("current target")->Set(target);
-            bot->SetSelectionGuid(target->GetObjectGuid());
-            return true;
+            return DungeonTargetHelper::FindNearestAliveCreature(ai, entry, reference);
         }
 
         bool SelectRtiTarget(std::string const& icon, Unit* target)
@@ -150,13 +84,11 @@ namespace ai
 
             changed |= SetTargetIcon(icon, target);
 
-            Value<std::string>* rti = context->GetValue<std::string>("rti");
-            if (rti && rti->Get() != icon)
-            {
-                rti->Set(icon);
-                changed = true;
-            }
+            // SetRti refreshes current target from the RTI value.
+            changed |= SetRti(icon);
 
+            // Keep this explicit target set so the selected target is correct
+            // immediately, even if the RTI target value refreshes later.
             changed |= SetCurrentTarget(target);
 
             return changed;
@@ -230,7 +162,7 @@ namespace ai
             if (!IsValidBoss(boss))
                 return false;
 
-            Unit* victim = GetVictim(boss);
+            Unit* victim = DungeonTargetHelper::GetVictim(boss);
             if (!victim)
                 return false;
 
@@ -272,18 +204,6 @@ namespace ai
                    boss->IsInWorld() &&
                    boss->GetMapId() == bot->GetMapId();
         }
-
-        Unit* GetVictim(Unit* unit)
-        {
-            if (!unit)
-                return nullptr;
-
-#ifdef CMANGOS
-            return unit->GetVictim();
-#else
-            return unit->getVictim();
-#endif
-        }
     };
 
     class KurinnaxxTankRetreatAction : public MoveAwayFromCreature
@@ -317,13 +237,7 @@ namespace ai
             if (!boss)
                 return false;
 
-            Unit* victim = nullptr;
-#ifdef CMANGOS
-            victim = boss->GetVictim();
-#else
-            victim = boss->getVictim();
-#endif
-
+            Unit* victim = DungeonTargetHelper::GetVictim(boss);
             return victim && victim->GetObjectGuid() == bot->GetObjectGuid();
         }
 
@@ -344,42 +258,12 @@ namespace ai
     private:
         Unit* FindNearestEgg()
         {
-            std::vector<Unit*> eggs = DungeonTargetHelper::FindAliveCreatures(ai, AQ20::NPC_BURU_EGG);
-            Unit* best = nullptr;
-            float bestDistance = 999999.0f;
-
-            for (Unit* egg : eggs)
-            {
-                if (!egg || !egg->IsAlive())
-                    continue;
-
-                float distance = bot->GetDistance(egg);
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    best = egg;
-                }
-            }
-
-            return best;
+            return DungeonTargetHelper::FindNearestAliveCreature(ai, AQ20::NPC_BURU_EGG, bot);
         }
 
         bool MarkEgg(Unit* egg)
         {
-            if (!egg || !bot->GetGroup())
-                return false;
-
-            int index = RtiTargetValue::GetRtiIndex("cross");
-            if (index < 0)
-                return false;
-
-#ifndef MANGOSBOT_TWO
-            bot->GetGroup()->SetTargetIcon(index, egg->GetObjectGuid());
-#else
-            bot->GetGroup()->SetTargetIcon(index, bot->GetObjectGuid(), egg->GetObjectGuid());
-#endif
-
-            return true;
+            return DungeonTargetHelper::SetTargetIcon(ai, "cross", egg);
         }
     };
 
@@ -572,8 +456,13 @@ namespace ai
             if (!IsBotOnAltar())
                 return false;
 
-            if (bot->GetDistance(AQ20::AYAMISS_ALTAR_EXIT_X, AQ20::AYAMISS_ALTAR_EXIT_Y, AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+            if (bot->GetDistance(
+                    AQ20::AYAMISS_ALTAR_EXIT_X,
+                    AQ20::AYAMISS_ALTAR_EXIT_Y,
+                    AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+            {
                 return true;
+            }
 
             return MoveTo(
                 bot->GetMapId(),
@@ -595,11 +484,19 @@ namespace ai
             if (bot->GetMapId() != AQ20::MAP_ID)
                 return false;
 
-            if (bot->GetDistance(AQ20::AYAMISS_ALTAR_EXIT_X, AQ20::AYAMISS_ALTAR_EXIT_Y, AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+            if (bot->GetDistance(
+                    AQ20::AYAMISS_ALTAR_EXIT_X,
+                    AQ20::AYAMISS_ALTAR_EXIT_Y,
+                    AQ20::AYAMISS_ALTAR_EXIT_Z) <= 3.0f)
+            {
                 return false;
+            }
 
-            return bot->GetDistance(AQ20::AYAMISS_ALTAR_X, AQ20::AYAMISS_ALTAR_Y, AQ20::AYAMISS_ALTAR_Z) <= 30.0f &&
-                bot->GetPositionZ() >= 24.0f;
+            return bot->GetDistance(
+                       AQ20::AYAMISS_ALTAR_X,
+                       AQ20::AYAMISS_ALTAR_Y,
+                       AQ20::AYAMISS_ALTAR_Z) <= 30.0f &&
+                   bot->GetPositionZ() >= 24.0f;
         }
     };
 
@@ -721,7 +618,7 @@ namespace ai
                 return false;
 
             // Before Ayamiss lands, melee cannot usefully hit her.
-            if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
+            if (!ai->IsRanged(bot) && IsAyamissFlying())
                 return false;
 
             if (IsCurrentTarget(boss))
@@ -745,7 +642,7 @@ namespace ai
             if (!ai->IsRanged(bot) && HasAliveCreature(AQ20::NPC_HIVEZARA_LARVA))
                 return false;
 
-            if (!ai->IsRanged(bot) && GetHealthPct(boss) > 70.0f)
+            if (!ai->IsRanged(bot) && IsAyamissFlying())
                 return false;
 
             return SelectRtiTarget("cross", boss);
@@ -801,7 +698,8 @@ namespace ai
     private:
         GameObject* FindNearestCrystal()
         {
-            std::list<ObjectGuid> guids = AI_VALUE2(std::list<ObjectGuid>, "nearest game objects no los", AQ20::GO_OSSIRIAN_CRYSTAL);
+            std::list<ObjectGuid> guids =
+                AI_VALUE2(std::list<ObjectGuid>, "nearest game objects no los", AQ20::GO_OSSIRIAN_CRYSTAL);
 
             GameObject* best = nullptr;
             float bestDistance = 999999.0f;
@@ -856,7 +754,8 @@ namespace ai
             if (!boss)
                 return nullptr;
 
-            std::list<ObjectGuid> guids = AI_VALUE2(std::list<ObjectGuid>, "nearest game objects no los", AQ20::GO_OSSIRIAN_CRYSTAL);
+            std::list<ObjectGuid> guids =
+                AI_VALUE2(std::list<ObjectGuid>, "nearest game objects no los", AQ20::GO_OSSIRIAN_CRYSTAL);
 
             for (ObjectGuid const& guid : guids)
             {
@@ -913,7 +812,6 @@ namespace ai
     // ------------------------------------------------------------
     // Action context
     // ------------------------------------------------------------
-
     class AhnQirajRuinsActionContext : public NamedObjectContext<Action>
     {
     public:
@@ -951,4 +849,5 @@ namespace ai
             creators["select ossirian boss"] = [](PlayerbotAI* ai) { return new SelectOssirianBossAction(ai); };
         }
     };
+
 }

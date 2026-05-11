@@ -22,6 +22,9 @@ namespace ai
 
         static constexpr float SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE = 10.0f;
 
+        static constexpr uint32 ITEM_GREATER_NATURE_PROTECTION_POTION = 13458;
+        static constexpr uint32 SPELL_GREATER_NATURE_PROTECTION = 17546;
+
         inline bool IsSkeram(Unit* unit)
         {
             return unit && unit->IsAlive() && unit->GetEntry() == NPC_PROPHET_SKERAM;
@@ -48,9 +51,7 @@ namespace ai
                 uint32 maxHealth = unit->GetMaxHealth();
                 uint32 health = unit->GetHealth();
 
-                if (!best ||
-                    maxHealth > bestMaxHealth ||
-                    (maxHealth == bestMaxHealth && health > bestHealth))
+                if (!best || maxHealth > bestMaxHealth || (maxHealth == bestMaxHealth && health > bestHealth))
                 {
                     best = unit;
                     bestMaxHealth = maxHealth;
@@ -138,6 +139,7 @@ namespace ai
             {
                 if (!left)
                     return false;
+
                 if (!right)
                     return true;
 
@@ -173,21 +175,12 @@ namespace ai
             }
         }
 
-        inline bool IsSkeramSupportedCcClass(Player* bot)
-        {
-            return !GetSkeramCcSpell(bot).empty();
-        }
-
         inline bool IsSkeramControlled(Unit* unit)
         {
             if (!unit || !unit->IsAlive())
                 return false;
 
-            // Robust charm / mind-control detection.
-            if (unit->HasAuraType(AuraType::SPELL_AURA_MOD_CHARM))
-                return true;
-
-            return false;
+            return unit->HasAuraType(AuraType::SPELL_AURA_MOD_CHARM);
         }
 
         inline bool IsSkeramControlled(PlayerbotAI* ai, Unit* unit)
@@ -198,26 +191,13 @@ namespace ai
             if (IsSkeramControlled(unit))
                 return true;
 
-            // Fallback for old/scripted cores where the aura type may not expose cleanly.
-            static const std::vector<std::string> controlAuras =
-            {
-                "true fulfillment",
-                "mind control",
-                "charm"
-            };
-
+            static const std::vector<std::string> controlAuras = { "true fulfillment", "mind control", "charm" };
             return DungeonTargetHelper::HasAnyAura(ai, unit, controlAuras);
         }
 
         inline bool IsAlreadySkeramCrowdControlled(PlayerbotAI* ai, Unit* unit)
         {
-            static const std::vector<std::string> ccAuras =
-            {
-                "polymorph",
-                "fear",
-                "entangling roots"
-            };
-
+            static const std::vector<std::string> ccAuras = { "polymorph", "fear", "entangling roots" };
             return DungeonTargetHelper::HasAnyAura(ai, unit, ccAuras);
         }
 
@@ -235,11 +215,7 @@ namespace ai
             return true;
         }
 
-        inline Unit* FindSkeramControlledTargetInList(
-            PlayerbotAI* ai,
-            Player* bot,
-            std::string const& valueName,
-            bool requireNotCc = true)
+        inline Unit* FindSkeramControlledTargetInList(PlayerbotAI* ai, Player* bot, std::string const& valueName, bool requireNotCc = true)
         {
             auto predicate = [ai, bot, requireNotCc](Unit* unit) -> bool
             {
@@ -277,6 +253,43 @@ namespace ai
             return nullptr;
         }
 
+        inline Unit* FindCastableSkeramControlledTarget(PlayerbotAI* ai, Player* bot)
+        {
+            if (!ai || !bot)
+                return nullptr;
+
+            std::string spell = GetSkeramCcSpell(bot);
+            if (spell.empty())
+                return nullptr;
+
+            auto isCastableControlled = [ai, bot, spell](Unit* unit) -> bool
+            {
+                return IsValidSkeramControlledTarget(ai, bot, unit, true) && ai->CanCastSpell(spell, unit, true);
+            };
+
+            Unit* target = DungeonTargetHelper::FindUnitInGuidList(ai, "nearest friendly players", isCastableControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "attackers", isCastableControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "possible attack targets", isCastableControlled);
+            if (target)
+                return target;
+
+            target = DungeonTargetHelper::FindUnitInGuidList(ai, "possible targets", isCastableControlled);
+            if (target)
+                return target;
+
+            Unit* currentTarget = DungeonTargetHelper::GetUnitValue(ai, "current target");
+            if (isCastableControlled(currentTarget))
+                return currentTarget;
+
+            return nullptr;
+        }
+
         inline Unit* FindSkeramControlledTargetNearBot(PlayerbotAI* ai, Player* bot, float maxDistance)
         {
             if (!ai || !bot)
@@ -284,10 +297,7 @@ namespace ai
 
             auto isNearControlled = [ai, bot, maxDistance](Unit* unit) -> bool
             {
-                if (!IsValidSkeramControlledTarget(ai, bot, unit, false))
-                    return false;
-
-                return bot->GetDistance(unit) <= maxDistance;
+                return IsValidSkeramControlledTarget(ai, bot, unit, false) && bot->GetDistance(unit) <= maxDistance;
             };
 
             Unit* target = DungeonTargetHelper::FindUnitInGuidList(ai, "nearest friendly players", isNearControlled);
@@ -315,18 +325,7 @@ namespace ai
 
         inline bool CanCcSkeramControlledTarget(PlayerbotAI* ai, Player* bot)
         {
-            if (!ai || !bot)
-                return false;
-
-            std::string spell = GetSkeramCcSpell(bot);
-            if (spell.empty())
-                return false;
-
-            Unit* target = FindSkeramControlledTarget(ai, bot, true);
-            if (!target)
-                return false;
-
-            return ai->CanCastSpell(spell, target, true);
+            return FindCastableSkeramControlledTarget(ai, bot) != nullptr;
         }
 
         inline bool CastCcOnSkeramControlledTarget(PlayerbotAI* ai, Player* bot)
@@ -334,24 +333,72 @@ namespace ai
             if (!ai || !bot)
                 return false;
 
-            if (bot->GetCurrentSpell(CURRENT_GENERIC_SPELL) ||
-                bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
-            {
-                return false;
-            }
-
             std::string spell = GetSkeramCcSpell(bot);
             if (spell.empty())
                 return false;
 
-            Unit* target = FindSkeramControlledTarget(ai, bot, true);
+            for (int type = CURRENT_MELEE_SPELL; type < CURRENT_CHANNELED_SPELL; ++type)
+            {
+                Spell* currentSpell = bot->GetCurrentSpell((CurrentSpellTypes)type);
+                if (currentSpell && currentSpell->CanBeInterrupted())
+                {
+                    bot->InterruptSpell((CurrentSpellTypes)type);
+                    ai->SpellInterrupted(currentSpell->m_spellInfo->Id);
+                }
+            }
+
+            Unit* target = FindCastableSkeramControlledTarget(ai, bot);
             if (!target)
                 return false;
 
-            if (!ai->CanCastSpell(spell, target, true))
+            return ai->CastSpell(spell, target);
+        }
+
+        inline bool HasGreaterNatureProtection(PlayerbotAI* ai, Player* bot)
+        {
+            return ai && bot && ai->HasAura(SPELL_GREATER_NATURE_PROTECTION, bot);
+        }
+
+        inline bool IsGreaterNatureProtectionPotionReady(PlayerbotAI* ai, Player* bot)
+        {
+            if (!ai || !bot)
                 return false;
 
-            return ai->CastSpell(spell, target);
+            if (HasGreaterNatureProtection(ai, bot))
+                return false;
+
+            if (!ai->HasCheat(BotCheatMask::item) && !bot->HasItemCount(ITEM_GREATER_NATURE_PROTECTION_POTION, 1))
+                return false;
+
+            ItemPrototype const* proto = sObjectMgr.GetItemPrototype(ITEM_GREATER_NATURE_PROTECTION_POTION);
+            if (!proto)
+                return false;
+
+            if (!ai->HasCheat(BotCheatMask::item) && bot->CanUseItem(proto) != EQUIP_ERR_OK)
+                return false;
+
+            for (uint8 i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+            {
+                _Spell const& spellData = proto->Spells[i];
+
+                if (!spellData.SpellId)
+                    continue;
+
+#ifdef MANGOSBOT_ZERO
+                if (spellData.SpellTrigger != ITEM_SPELLTRIGGER_ON_USE && spellData.SpellTrigger != ITEM_SPELLTRIGGER_ON_NO_DELAY_USE)
+#else
+                if (spellData.SpellTrigger != ITEM_SPELLTRIGGER_ON_USE)
+#endif
+                    continue;
+
+                if (!sServerFacade.IsSpellReady(bot, spellData.SpellId))
+                    return false;
+
+                if (!sServerFacade.IsSpellReady(bot, spellData.SpellId, ITEM_GREATER_NATURE_PROTECTION_POTION))
+                    return false;
+            }
+
+            return true;
         }
     }
 }

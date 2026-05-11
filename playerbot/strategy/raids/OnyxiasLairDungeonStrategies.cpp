@@ -25,7 +25,9 @@ void OnyxiaFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     Player* bot = ai->GetBot();
     if (!bot)
         return;
-
+    triggers.push_back(new TriggerNode(
+        "onyxia egg pit too close",
+        NextAction::array(0, new NextAction("move out of onyxia egg pit", 110.0f), NULL)));
     // Phase 2:
     // Melee DPS and tanks cannot reliably attack flying Onyxia,
     // so they should switch to Onyxian Whelps.

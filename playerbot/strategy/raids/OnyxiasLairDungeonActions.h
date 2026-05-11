@@ -3,9 +3,13 @@
 #include "../actions/DungeonActions.h"
 #include "../actions/ChangeStrategyAction.h"
 
+#include "DungeonTargetHelper.h"
+
 #include "playerbot/strategy/Action.h"
 #include "playerbot/ServerFacade.h"
 
+#include <algorithm>
+#include <cmath>
 #include <list>
 #include <string>
 #include <vector>
@@ -19,130 +23,69 @@ namespace ai
             : Action(ai, name) {}
 
     protected:
-        static const uint32 NPC_ONYXIA = 10184;
-        static const uint32 NPC_ONYXIAN_WHELP = 11262;
+        static constexpr uint32 MAP_ONYXIA_LAIR = 249;
+
+        static constexpr uint32 NPC_ONYXIA = 10184;
+        static constexpr uint32 NPC_ONYXIAN_WHELP = 11262;
+
+        static constexpr float ONYXIA_EGG_PIT_1_X = -27.0f;
+        static constexpr float ONYXIA_EGG_PIT_1_Y = -186.6f;
+        static constexpr float ONYXIA_EGG_PIT_1_Z = -89.0f;
+
+        static constexpr float ONYXIA_EGG_PIT_2_X = -27.0f;
+        static constexpr float ONYXIA_EGG_PIT_2_Y = -250.0f;
+        static constexpr float ONYXIA_EGG_PIT_2_Z = -89.0f;
+
+        static constexpr float ONYXIA_SAFE_CENTER_X = 13.0f;
+        static constexpr float ONYXIA_SAFE_CENTER_Y = -205.0f;
+        static constexpr float ONYXIA_SAFE_CENTER_Z = -85.77f;
+
+        // Tune this if bots still touch eggs.
+        static constexpr float ONYXIA_EGG_PIT_RADIUS = 20.0f;
+
+        // One movement step toward the center.
+        // Repeated trigger executions will continue walking them out.
+        static constexpr float ONYXIA_EGG_PIT_MOVE_STEP = 10.0f;
 
     protected:
         Unit* FindAliveCreature(uint32 entry)
         {
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (IsValidCreature(currentTarget, entry))
-                return currentTarget;
-
-            Unit* unit = FindAliveCreatureInGuidList("possible attack targets", entry);
-            if (unit)
-                return unit;
-
-            unit = FindAliveCreatureInGuidList("attackers", entry);
-            if (unit)
-                return unit;
-
-            unit = FindAliveCreatureInGuidList("possible targets", entry);
-            if (unit)
-                return unit;
-
-            return nullptr;
+            return DungeonTargetHelper::FindAliveCreature(ai, entry);
         }
 
         Unit* FindNearestAliveCreature(uint32 entry)
         {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return nullptr;
-
-            Unit* best = nullptr;
-            float bestDistance = 999999.0f;
-
-            FindNearestAliveCreatureInGuidList("possible attack targets", entry, best, bestDistance);
-            FindNearestAliveCreatureInGuidList("attackers", entry, best, bestDistance);
-            FindNearestAliveCreatureInGuidList("possible targets", entry, best, bestDistance);
-
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (IsValidCreature(currentTarget, entry))
-            {
-                float distance = sServerFacade.GetDistance2d(bot, currentTarget);
-                if (!best || distance < bestDistance)
-                {
-                    best = currentTarget;
-                    bestDistance = distance;
-                }
-            }
-
-            return best;
-        }
-
-        Unit* FindAliveCreatureInGuidList(std::string const& valueName, uint32 entry)
-        {
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, valueName);
-
-            for (ObjectGuid const& guid : targets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (IsValidCreature(unit, entry))
-                    return unit;
-            }
-
-            return nullptr;
-        }
-
-        void FindNearestAliveCreatureInGuidList(
-            std::string const& valueName,
-            uint32 entry,
-            Unit*& best,
-            float& bestDistance)
-        {
-            Player* bot = ai->GetBot();
-            if (!bot)
-                return;
-
-            std::list<ObjectGuid> targets = AI_VALUE(std::list<ObjectGuid>, valueName);
-
-            for (ObjectGuid const& guid : targets)
-            {
-                Unit* unit = ai->GetUnit(guid);
-                if (!IsValidCreature(unit, entry))
-                    continue;
-
-                float distance = sServerFacade.GetDistance2d(bot, unit);
-                if (!best || distance < bestDistance)
-                {
-                    best = unit;
-                    bestDistance = distance;
-                }
-            }
-        }
-
-        bool IsValidCreature(Unit* unit, uint32 entry)
-        {
-            return unit &&
-                   unit->IsAlive() &&
-                   unit->GetEntry() == entry;
+            return DungeonTargetHelper::FindNearestAliveCreature(ai, entry);
         }
 
         bool SetCurrentTarget(Unit* target)
         {
-            if (!target)
-                return false;
+            return DungeonTargetHelper::SetCurrentTarget(ai, target);
+        }
 
-            Player* bot = ai->GetBot();
+        static float Distance2d(float x1, float y1, float x2, float y2)
+        {
+            float dx = x1 - x2;
+            float dy = y1 - y2;
+            return std::sqrt(dx * dx + dy * dy);
+        }
+
+        bool IsNearOnyxiaEggPit(Player* bot) const
+        {
             if (!bot)
                 return false;
 
-            Unit* currentTarget = AI_VALUE(Unit*, "current target");
-            if (currentTarget &&
-                currentTarget->IsAlive() &&
-                currentTarget->GetObjectGuid() == target->GetObjectGuid())
-            {
-                // Important:
-                // Returning false here prevents the action from constantly
-                // consuming cycles when the bot already has the correct target.
+            if (bot->GetMapId() != MAP_ONYXIA_LAIR)
                 return false;
-            }
 
-            context->GetValue<Unit*>("current target")->Set(target);
-            bot->SetSelectionGuid(target->GetObjectGuid());
+            float x = bot->GetPositionX();
+            float y = bot->GetPositionY();
 
-            return true;
+            float d1 = Distance2d(x, y, ONYXIA_EGG_PIT_1_X, ONYXIA_EGG_PIT_1_Y);
+            float d2 = Distance2d(x, y, ONYXIA_EGG_PIT_2_X, ONYXIA_EGG_PIT_2_Y);
+
+            return d1 <= ONYXIA_EGG_PIT_RADIUS ||
+                   d2 <= ONYXIA_EGG_PIT_RADIUS;
         }
     };
 
@@ -173,61 +116,118 @@ namespace ai
     };
 
 
+    class MoveOutOfOnyxiaEggPitAction : public MovementAction
+    {
+    public:
+        MoveOutOfOnyxiaEggPitAction(PlayerbotAI* ai)
+            : MovementAction(ai, "move out of onyxia egg pit") {}
+
+        bool Execute(Event& event) override
+        {
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            if (!bot->IsInWorld() || bot->IsBeingTeleported())
+                return false;
+
+            if (bot->GetMapId() != MAP_ONYXIA_LAIR)
+                return false;
+
+            float botX = bot->GetPositionX();
+            float botY = bot->GetPositionY();
+
+            float d1 = Distance2d(botX, botY, ONYXIA_EGG_PIT_1_X, ONYXIA_EGG_PIT_1_Y);
+            float d2 = Distance2d(botX, botY, ONYXIA_EGG_PIT_2_X, ONYXIA_EGG_PIT_2_Y);
+
+            if (d1 > ONYXIA_EGG_PIT_RADIUS && d2 > ONYXIA_EGG_PIT_RADIUS)
+                return false;
+
+            float toCenterX = ONYXIA_SAFE_CENTER_X - botX;
+            float toCenterY = ONYXIA_SAFE_CENTER_Y - botY;
+            float length = std::sqrt(toCenterX * toCenterX + toCenterY * toCenterY);
+
+            if (length < 0.1f)
+                return false;
+
+            float step = std::min(ONYXIA_EGG_PIT_MOVE_STEP, length);
+
+            float destX = botX + (toCenterX / length) * step;
+            float destY = botY + (toCenterY / length) * step;
+            float destZ = ONYXIA_SAFE_CENTER_Z;
+
+            if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+            {
+                bot->SummonCreature(
+                    15631,
+                    destX,
+                    destY,
+                    destZ,
+                    0.0f,
+                    TEMPSPAWN_TIMED_DESPAWN,
+                    5000.0f);
+            }
+
+            if (MoveTo(bot->GetMapId(), destX, destY, destZ, false, IsReaction(), false, true))
+            {
+                if (IsReaction())
+                    WaitForReach(step);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        bool isPossible() override
+        {
+            return MovementAction::isPossible() && ai->CanMove();
+        }
+
+    private:
+        static constexpr uint32 MAP_ONYXIA_LAIR = 249;
+
+        static constexpr float ONYXIA_EGG_PIT_1_X = -27.0f;
+        static constexpr float ONYXIA_EGG_PIT_1_Y = -186.6f;
+        static constexpr float ONYXIA_EGG_PIT_1_Z = -89.0f;
+
+        static constexpr float ONYXIA_EGG_PIT_2_X = -27.0f;
+        static constexpr float ONYXIA_EGG_PIT_2_Y = -250.0f;
+        static constexpr float ONYXIA_EGG_PIT_2_Z = -89.0f;
+
+        static constexpr float ONYXIA_SAFE_CENTER_X = 13.0f;
+        static constexpr float ONYXIA_SAFE_CENTER_Y = -205.0f;
+        static constexpr float ONYXIA_SAFE_CENTER_Z = -85.77f;
+
+        static constexpr float ONYXIA_EGG_PIT_RADIUS = 20.0f;
+        static constexpr float ONYXIA_EGG_PIT_MOVE_STEP = 10.0f;
+
+    private:
+        static float Distance2d(float x1, float y1, float x2, float y2)
+        {
+            float dx = x1 - x2;
+            float dy = y1 - y2;
+            return std::sqrt(dx * dx + dy * dy);
+        }
+    };
+
+
     class OnyxiaActionContext : public NamedObjectContext<Action>
     {
     public:
         OnyxiaActionContext()
         {
-            creators["enable onyxia lair strategy"] = [](PlayerbotAI* ai)
-            {
-                return new ChangeAllStrategyAction(
-                    ai,
-                    "enable onyxia lair strategy",
-                    "+onyxia lair");
-            };
+            creators["enable onyxia lair strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable onyxia lair strategy", "+onyxia lair"); };
+            creators["disable onyxia lair strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable onyxia lair strategy", "-onyxia lair"); };
 
-            creators["disable onyxia lair strategy"] = [](PlayerbotAI* ai)
-            {
-                return new ChangeAllStrategyAction(
-                    ai,
-                    "disable onyxia lair strategy",
-                    "-onyxia lair");
-            };
+            creators["enable onyxia fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable onyxia fight strategy", "+onyxia"); };
+            creators["disable onyxia fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable onyxia fight strategy", "-onyxia"); };
 
-            creators["enable onyxia fight strategy"] = [](PlayerbotAI* ai)
-            {
-                return new ChangeAllStrategyAction(
-                    ai,
-                    "enable onyxia fight strategy",
-                    "+onyxia");
-            };
+            creators["target onyxia whelp"] = [](PlayerbotAI* ai) { return new TargetOnyxiaWhelpAction(ai); };
+            creators["target onyxia"] = [](PlayerbotAI* ai) { return new TargetOnyxiaAction(ai); };
 
-            creators["disable onyxia fight strategy"] = [](PlayerbotAI* ai)
-            {
-                return new ChangeAllStrategyAction(
-                    ai,
-                    "disable onyxia fight strategy",
-                    "-onyxia");
-            };
-
-            creators["target onyxia whelp"] = [](PlayerbotAI* ai)
-            {
-                return new TargetOnyxiaWhelpAction(ai);
-            };
-
-            creators["target onyxia"] = [](PlayerbotAI* ai)
-            {
-                return new TargetOnyxiaAction(ai);
-            };
-
-            creators["move away from onyxia"] = [](PlayerbotAI* ai)
-            {
-                return new MoveAwayFromCreature(
-                    ai,
-                    "move away from onyxia",
-                    10184,
-                    30.0f);
-            };
+            creators["move away from onyxia"] = [](PlayerbotAI* ai) { return new MoveAwayFromCreature(ai, "move away from onyxia", 10184, 30.0f); };
+            creators["move out of onyxia egg pit"] = [](PlayerbotAI* ai) { return new MoveOutOfOnyxiaEggPitAction(ai); };
         }
     };
 }

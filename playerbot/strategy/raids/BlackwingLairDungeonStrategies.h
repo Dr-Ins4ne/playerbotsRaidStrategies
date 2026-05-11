@@ -1,4 +1,5 @@
 #pragma once
+
 #include "playerbot/strategy/Strategy.h"
 
 namespace ai
@@ -12,6 +13,20 @@ namespace ai
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
+    };
+
+    class RazorgoreFightStrategy : public Strategy
+    {
+    public:
+        RazorgoreFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "razorgore"; }
+
+    private:
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
+        void InitNonCombatMultipliers(std::list<Multiplier*>& multipliers) override;
+        void OnStrategyAdded(BotState state) override;
     };
 
     class SuppressionRoomStrategy : public Strategy

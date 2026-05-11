@@ -18,7 +18,7 @@ bool SkeramDamageControlMultiplier::IsBlockedRealSkeramAction(Action* action) co
     if (name == "melee" || name == "attack" || name == "shoot" || name == "attack rti target" ||
         name == "skeram mark images" || name == "skeram mark real" ||
         name == "skeram select image target" || name == "skeram select real target" ||
-        name == "skeram pull to tank position" || name == "skeram move to pull position" ||
+        name == "skeram pull to tank position" || name == "skeram move to pull position" || name == "skeram move to ranged position" ||
         name == "skeram tank target real" || name == "cc skeram controlled target" ||
         name == "skeram select controlled player for flee" || name == "flee" || name == "flee with pet" ||
         name == "use greater nature protection potion")
@@ -82,6 +82,7 @@ bool SkeramControlledPlayerDamageMultiplier::IsAllowedControlledPlayerAction(Act
            name == "interrupt current spell" ||
            name == "skeram pull to tank position" ||
            name == "skeram move to pull position" ||
+           name == "skeram move to ranged position" ||
            name == "skeram tank target real" ||
            name == "use greater nature protection potion";
 }
@@ -161,7 +162,8 @@ float SkeramTankAnchorMultiplier::GetValue(Action* action)
     std::string name = action->getName();
     strToLower(name);
 
-    if (name == "skeram pull to tank position" || name == "skeram tank target real" || name == "use greater nature protection potion")
+    if (name == "skeram pull to tank position" || name == "skeram tank target real" || name == "use greater nature protection potion" ||
+        name == "skeram move to ranged position")
         return 1.0f;
 
     if (IsBlockedAnchorBreakingAction(action))

@@ -61,6 +61,34 @@ namespace ai
         bool isPossible() override;
     };
 
+
+
+    class SkeramAssignRangedPositionAction : public Action
+    {
+    public:
+        SkeramAssignRangedPositionAction(PlayerbotAI* ai) : Action(ai, "skeram assign ranged position") {}
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+    };
+
+
+    class SkeramClearRangedPositionAction : public Action
+    {
+    public:
+        SkeramClearRangedPositionAction(PlayerbotAI* ai) : Action(ai, "skeram clear ranged position") {}
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+    };
+
+    class SkeramMoveToRangedPositionAction : public MovementAction
+    {
+    public:
+        SkeramMoveToRangedPositionAction(PlayerbotAI* ai) : MovementAction(ai, "skeram move to ranged position") {}
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+        bool isPossible() override;
+    };
+
     class CrowdControlSkeramControlledTargetAction : public Action
     {
     public:
@@ -108,6 +136,9 @@ namespace ai
             creators["skeram select real target"] = [](PlayerbotAI* ai) { return new SkeramSelectRealTargetAction(ai); };
             creators["skeram pull to tank position"] = [](PlayerbotAI* ai) { return new SkeramPullToTankPositionAction(ai); };
             creators["skeram move to pull position"] = [](PlayerbotAI* ai) { return new SkeramMoveToPullPositionAction(ai); };
+            creators["skeram assign ranged position"] = [](PlayerbotAI* ai) { return new SkeramAssignRangedPositionAction(ai); };
+            creators["skeram clear ranged position"] = [](PlayerbotAI* ai) { return new SkeramClearRangedPositionAction(ai); };
+            creators["skeram move to ranged position"] = [](PlayerbotAI* ai) { return new SkeramMoveToRangedPositionAction(ai); };
             creators["cc skeram controlled target"] = [](PlayerbotAI* ai) { return new CrowdControlSkeramControlledTargetAction(ai); };
             creators["skeram select controlled player for flee"] = [](PlayerbotAI* ai) { return new SkeramSelectControlledPlayerForFleeAction(ai); };
             creators["skeram tank target real"] = [](PlayerbotAI* ai) { return new SkeramTankTargetRealAction(ai); };

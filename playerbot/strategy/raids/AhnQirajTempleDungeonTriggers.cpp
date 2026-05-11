@@ -14,19 +14,28 @@ bool SkeramImagesActiveTrigger::IsActive()
     if (real && !DungeonTargetHelper::HasCorrectTargetIcon(ai, "star", real))
         return true;
 
-    if (images.size() >= 1 && !DungeonTargetHelper::HasCorrectTargetIcon(ai, "skull", images[0]))
-        return true;
-
-    if (images.size() >= 2 && !DungeonTargetHelper::HasCorrectTargetIcon(ai, "cross", images[1]))
-        return true;
-
     Unit* skull = DungeonTargetHelper::GetTargetIconUnit(ai, "skull");
-    if (skull && skull->IsAlive())
-        return DungeonTargetHelper::NeedsDpsRtiSelection(ai, "skull", skull);
-
     Unit* cross = DungeonTargetHelper::GetTargetIconUnit(ai, "cross");
-    if (cross && cross->IsAlive())
-        return DungeonTargetHelper::NeedsDpsRtiSelection(ai, "cross", cross);
+
+    bool skullIsImage = skull && skull->IsAlive() && AhnQirajTemple::IsSkeramImage(ai, skull);
+    bool crossIsImage = cross && cross->IsAlive() && AhnQirajTemple::IsSkeramImage(ai, cross);
+
+    // Do not enforce images[0] -> skull and images[1] -> cross. That causes icon flipping as health/order changes.
+    // Only require a live skull image, and a distinct live cross image while two images are alive.
+    if (!skullIsImage)
+        return true;
+
+    if (images.size() >= 2)
+    {
+        if (!crossIsImage)
+            return true;
+
+        if (cross->GetObjectGuid() == skull->GetObjectGuid())
+            return true;
+    }
+
+    if (DungeonTargetHelper::NeedsDpsRtiSelection(ai, "skull", skull))
+        return true;
 
     return false;
 }
@@ -130,6 +139,9 @@ bool SkeramRtiTargetNotVisibleTrigger::IsActive()
     if (!AhnQirajTemple::GetRealSkeram(ai))
         return false;
 
+    if (!AhnQirajTemple::IsRealSkeramTargetingBot(ai))
+        return false;
+
     Unit* controlled = AhnQirajTemple::FindSkeramControlledTargetNearBot(ai, bot, AhnQirajTemple::SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE);
     if (controlled)
         return false;
@@ -142,6 +154,51 @@ bool SkeramRtiTargetNotVisibleTrigger::IsActive()
         return false;
 
     return !AhnQirajTemple::IsBotNearSkeramPullPosition(ai);
+}
+
+
+bool SkeramRangedPositionNotAssignedTrigger::IsActive()
+{
+    if (!ai->HasStrategy("skeram", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!bot || !bot->IsInWorld() || bot->IsBeingTeleported())
+        return false;
+
+    if (!AhnQirajTemple::GetRealSkeram(ai))
+        return false;
+
+    if (!AhnQirajTemple::IsSkeramRangedPositionBot(ai))
+        return false;
+
+    return !AhnQirajTemple::HasSkeramAssignedRangedPosition(bot);
+}
+
+bool SkeramRangedOutOfPositionTrigger::IsActive()
+{
+    if (!ai->HasStrategy("skeram", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!bot || !bot->IsInWorld() || bot->IsBeingTeleported())
+        return false;
+
+    if (!ai->CanMove())
+        return false;
+
+    if (!AhnQirajTemple::GetRealSkeram(ai))
+        return false;
+
+    if (!AhnQirajTemple::IsSkeramRangedPositionBot(ai))
+        return false;
+
+    if (AhnQirajTemple::IsRealSkeramTargetingBot(ai))
+        return false;
+
+    Unit* controlled = AhnQirajTemple::FindSkeramControlledTargetNearBot(ai, bot, AhnQirajTemple::SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE);
+    if (controlled)
+        return false;
+
+    return !AhnQirajTemple::IsBotNearSkeramAssignedRangedPosition(ai);
 }
 
 bool SkeramGreaterNatureProtectionPotionReadyTrigger::IsActive()

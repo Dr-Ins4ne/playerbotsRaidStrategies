@@ -83,6 +83,22 @@ namespace ai
         bool IsActive() override;
     };
 
+
+
+    class SkeramRangedPositionNotAssignedTrigger : public Trigger
+    {
+    public:
+        SkeramRangedPositionNotAssignedTrigger(PlayerbotAI* ai) : Trigger(ai, "skeram ranged position not assigned", 1) {}
+        bool IsActive() override;
+    };
+
+    class SkeramRangedOutOfPositionTrigger : public Trigger
+    {
+    public:
+        SkeramRangedOutOfPositionTrigger(PlayerbotAI* ai) : Trigger(ai, "skeram ranged out of position", 1) {}
+        bool IsActive() override;
+    };
+
     class SkeramGreaterNatureProtectionPotionReadyTrigger : public Trigger
     {
     public:
@@ -106,6 +122,8 @@ namespace ai
             creators["skeram controlled player too close"] = [](PlayerbotAI* ai) { return new SkeramControlledPlayerTooCloseTrigger(ai); };
             creators["skeram tank target controlled player"] = [](PlayerbotAI* ai) { return new SkeramTankTargetControlledPlayerTrigger(ai); };
             creators["skeram rti target not visible"] = [](PlayerbotAI* ai) { return new SkeramRtiTargetNotVisibleTrigger(ai); };
+            creators["skeram ranged position not assigned"] = [](PlayerbotAI* ai) { return new SkeramRangedPositionNotAssignedTrigger(ai); };
+            creators["skeram ranged out of position"] = [](PlayerbotAI* ai) { return new SkeramRangedOutOfPositionTrigger(ai); };
             creators["skeram greater nature protection potion ready"] = [](PlayerbotAI* ai) { return new SkeramGreaterNatureProtectionPotionReadyTrigger(ai); };
         }
     };

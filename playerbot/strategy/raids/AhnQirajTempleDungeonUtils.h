@@ -5,6 +5,8 @@
 #include "Spells/SpellAuraDefines.h"
 
 #include <algorithm>
+#include <cmath>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -15,10 +17,18 @@ namespace ai
         static constexpr uint32 MAP_AHNQIRAJ_TEMPLE = 531;
         static constexpr uint32 NPC_PROPHET_SKERAM = 15263;
 
-        static constexpr float SKERAM_PULL_X = -8361.0f;
-        static constexpr float SKERAM_PULL_Y = 2074.0f;
-        static constexpr float SKERAM_PULL_Z = 125.7f;
+        static constexpr float SKERAM_PULL_X = -8280.0f;
+        static constexpr float SKERAM_PULL_Y = 2109.0f;
+        static constexpr float SKERAM_PULL_Z = 118.0f;
         static constexpr float SKERAM_PULL_TOLERANCE = 3.0f;
+
+        static constexpr float SKERAM_RANGED_ANCHOR_X = -8266.0f;
+        static constexpr float SKERAM_RANGED_ANCHOR_Y = 2128.0f;
+        static constexpr float SKERAM_RANGED_ANCHOR_Z = 118.2f;
+        static constexpr float SKERAM_RANGED_POSITION_TOLERANCE = 3.0f;
+        static constexpr float SKERAM_RANGED_POSITION_MIN_RADIUS = 3.0f;
+        static constexpr float SKERAM_RANGED_POSITION_MAX_RADIUS = 8.0f;
+        static constexpr float SKERAM_PI = 3.14159265358979323846f;
 
         static constexpr float SKERAM_CONTROLLED_PLAYER_AVOID_DISTANCE = 10.0f;
 
@@ -95,6 +105,109 @@ namespace ai
                 return false;
 
             return bot->GetDistance(SKERAM_PULL_X, SKERAM_PULL_Y, SKERAM_PULL_Z) <= tolerance;
+        }
+
+        inline bool IsSkeramRangedPositionBot(PlayerbotAI* ai)
+        {
+            if (!ai)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            if (ai->IsTank(bot))
+                return false;
+
+            return ai->IsRanged(bot) || ai->IsHeal(bot);
+        }
+
+        struct SkeramAssignedRangedPosition
+        {
+            float x;
+            float y;
+            float z;
+        };
+
+        inline std::map<uint32, SkeramAssignedRangedPosition>& GetSkeramRangedPositionAssignments()
+        {
+            static std::map<uint32, SkeramAssignedRangedPosition> assignments;
+            return assignments;
+        }
+
+        inline bool HasSkeramAssignedRangedPosition(Player* bot)
+        {
+            if (!bot)
+                return false;
+
+            std::map<uint32, SkeramAssignedRangedPosition>& assignments = GetSkeramRangedPositionAssignments();
+            return assignments.find(bot->GetGUIDLow()) != assignments.end();
+        }
+
+        inline bool ClearSkeramAssignedRangedPosition(Player* bot)
+        {
+            if (!bot)
+                return false;
+
+            std::map<uint32, SkeramAssignedRangedPosition>& assignments = GetSkeramRangedPositionAssignments();
+            return assignments.erase(bot->GetGUIDLow()) > 0;
+        }
+
+        inline bool AssignSkeramRangedPosition(Player* bot)
+        {
+            if (!bot)
+                return false;
+
+            float angle = float(urand(0, 359)) * SKERAM_PI / 180.0f;
+            float radius = frand(SKERAM_RANGED_POSITION_MIN_RADIUS, SKERAM_RANGED_POSITION_MAX_RADIUS);
+
+            SkeramAssignedRangedPosition position;
+            position.x = SKERAM_RANGED_ANCHOR_X + radius * std::cos(angle);
+            position.y = SKERAM_RANGED_ANCHOR_Y + radius * std::sin(angle);
+            position.z = SKERAM_RANGED_ANCHOR_Z;
+
+            GetSkeramRangedPositionAssignments()[bot->GetGUIDLow()] = position;
+            return true;
+        }
+
+        inline bool GetSkeramAssignedRangedPosition(Player* bot, float& x, float& y, float& z)
+        {
+            if (!bot)
+                return false;
+
+            if (!HasSkeramAssignedRangedPosition(bot))
+                AssignSkeramRangedPosition(bot);
+
+            std::map<uint32, SkeramAssignedRangedPosition>& assignments = GetSkeramRangedPositionAssignments();
+            std::map<uint32, SkeramAssignedRangedPosition>::const_iterator it = assignments.find(bot->GetGUIDLow());
+            if (it == assignments.end())
+                return false;
+
+            x = it->second.x;
+            y = it->second.y;
+            z = it->second.z;
+            return true;
+        }
+
+        inline bool IsBotNearSkeramAssignedRangedPosition(PlayerbotAI* ai, float tolerance = SKERAM_RANGED_POSITION_TOLERANCE)
+        {
+            if (!ai)
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            if (bot->GetMapId() != MAP_AHNQIRAJ_TEMPLE)
+                return false;
+
+            float x = 0.0f;
+            float y = 0.0f;
+            float z = 0.0f;
+            if (!GetSkeramAssignedRangedPosition(bot, x, y, z))
+                return false;
+
+            return bot->GetDistance(x, y, z) <= tolerance;
         }
 
         inline bool IsRealSkeram(PlayerbotAI* ai, Unit* unit)

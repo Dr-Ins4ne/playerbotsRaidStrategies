@@ -1,9 +1,15 @@
 #pragma once
-#include "DungeonActions.h"
-#include "ChangeStrategyAction.h"
-#include "MovementActions.h"
-#include "UseItemAction.h"
+
+#include "../actions/DungeonActions.h"
+#include "../actions/ChangeStrategyAction.h"
+#include "../actions/MovementActions.h"
+#include "../actions/UseItemAction.h"
 #include "playerbot/strategy/values/GuidPositionValues.h"
+#include "BlackwingLairDungeonData.h"
+
+#include <cfloat>
+#include <cmath>
+#include <memory>
 
 namespace ai
 {
@@ -19,6 +25,37 @@ namespace ai
     {
     public:
         BlackwingLairDisableDungeonStrategyAction(PlayerbotAI* ai) : ChangeAllStrategyAction(ai, "disable blackwing lair strategy", "-blackwing lair") {}
+    };
+
+    class RazorgoreEnableFightStrategyAction : public ChangeAllStrategyAction
+    {
+    public:
+        RazorgoreEnableFightStrategyAction(PlayerbotAI* ai) : ChangeAllStrategyAction(ai, "enable razorgore fight strategy", "+razorgore") {}
+    };
+
+    class RazorgoreDisableFightStrategyAction : public ChangeAllStrategyAction
+    {
+    public:
+        RazorgoreDisableFightStrategyAction(PlayerbotAI* ai) : ChangeAllStrategyAction(ai, "disable razorgore fight strategy", "-razorgore") {}
+    };
+
+    class FocusRazorgoreControllerAction : public Action
+    {
+    public:
+        FocusRazorgoreControllerAction(PlayerbotAI* ai) : Action(ai, "focus razorgore controller") {}
+
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+    };
+
+    class MoveNearRazorgoreAction : public MovementAction
+    {
+    public:
+        MoveNearRazorgoreAction(PlayerbotAI* ai) : MovementAction(ai, "move near razorgore") {}
+
+        bool Execute(Event& event) override;
+        bool isPossible() override;
+        bool isUseful() override;
     };
 
     class MoveToSuppressionDeviceAction : public MovementAction
@@ -104,7 +141,7 @@ namespace ai
             if (ai->HasAura("stealth", bot))
                 return false;
 
-            // Core rogue stealth logic had some WSG/EYE flag checks, added in here too just in case
+            // Core rogue stealth logic has some WSG/EYE flag checks, keep them here too.
             return !ai->HasAura(23333, bot) && !ai->HasAura(23335, bot) && !ai->HasAura(34976, bot);
         }
     };
@@ -215,6 +252,24 @@ namespace ai
         {
             std::list<GuidPosition> gos = AI_VALUE(std::list<GuidPosition>, "go usable filter::go trapped filter::entry filter::{gos close,suppression devices}");
             return !gos.empty();
+        }
+    };
+
+    class BlackwingLairDungeonActionContext : public NamedObjectContext<Action>
+    {
+    public:
+        BlackwingLairDungeonActionContext()
+        {
+            creators["enable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairEnableDungeonStrategyAction(ai); };
+            creators["disable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairDisableDungeonStrategyAction(ai); };
+            creators["enable razorgore fight strategy"] = [](PlayerbotAI* ai) { return new RazorgoreEnableFightStrategyAction(ai); };
+            creators["disable razorgore fight strategy"] = [](PlayerbotAI* ai) { return new RazorgoreDisableFightStrategyAction(ai); };
+            creators["focus razorgore controller"] = [](PlayerbotAI* ai) { return new FocusRazorgoreControllerAction(ai); };
+            creators["move near razorgore"] = [](PlayerbotAI* ai) { return new MoveNearRazorgoreAction(ai); };
+            creators["move to suppression device"] = [](PlayerbotAI* ai) { return new MoveToSuppressionDeviceAction(ai); };
+            creators["stealth for suppression device"] = [](PlayerbotAI* ai) { return new StealthForSuppressionDeviceAction(ai); };
+            creators["deactivate suppression device"] = [](PlayerbotAI* ai) { return new DeactivateSuppressionDeviceAction(ai); };
+            creators["disarm suppression device"] = [](PlayerbotAI* ai) { return new DisarmSuppressionDeviceAction(ai); };
         }
     };
 }

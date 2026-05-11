@@ -15,6 +15,8 @@
 
 #include "raids/MoltenCoreDungeonTriggers.h"
 #include "raids/MoltenCoreDungeonActions.h"
+#include "raids/BlackwingLairDungeonTriggers.h"
+#include "raids/BlackwingLairDungeonActions.h"
 #include "raids/AhnQirajRuinsDungeonTriggers.h"
 #include "raids/AhnQirajRuinsDungeonActions.h"
 #include "raids/ZulGurubDungeonTriggers.h"
@@ -43,6 +45,9 @@ AiObjectContext::AiObjectContext(PlayerbotAI* ai) : PlayerbotAIAware(ai)
 
     actionContexts.Add(new MoltenCoreActionContext());
     triggerContexts.Add(new MoltenCoreTriggerContext());
+
+    actionContexts.Add(new BlackwingLairActionContext());
+    triggerContexts.Add(new BlackwingLairTriggerContext());
 
     actionContexts.Add(new OnyxiaActionContext());
     triggerContexts.Add(new OnyxiaTriggerContext());

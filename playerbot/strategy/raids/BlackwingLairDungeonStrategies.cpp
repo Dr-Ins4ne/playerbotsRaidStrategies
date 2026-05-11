@@ -1,10 +1,19 @@
 #include "playerbot/playerbot.h"
 #include "BlackwingLairDungeonStrategies.h"
+#include "BlackwingLairDungeonMultipliers.h"
 
 using namespace ai;
 
 void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode(
+        "start razorgore fight",
+        NextAction::array(0, new NextAction("enable razorgore fight strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "end razorgore fight",
+        NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
+
     triggers.push_back(new TriggerNode(
         "suppression device close",
         NextAction::array(0, new NextAction("disarm suppression device", 80.0f), NULL)));
@@ -12,6 +21,10 @@ void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& t
 
 void BlackwingLairDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+    triggers.push_back(new TriggerNode(
+        "end razorgore fight",
+        NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
+
     triggers.push_back(new TriggerNode(
         "suppression device need stealth",
         NextAction::array(0, new NextAction("stealth for suppression device", ACTION_HIGH + 3), NULL)));
@@ -25,68 +38,50 @@ void BlackwingLairDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>
         NextAction::array(0, new NextAction("disarm suppression device", ACTION_HIGH + 4), NULL)));
 }
 
-class SuppressionRoomPassiveMultiplier : public Multiplier
+void RazorgoreFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-public:
-    SuppressionRoomPassiveMultiplier(PlayerbotAI* ai) : Multiplier(ai, "suppression room passive") {}
+    triggers.push_back(new TriggerNode(
+        "razorgore controller alive",
+        NextAction::array(0,
+            new NextAction("focus razorgore controller", ACTION_EMERGENCY + 10),
+            new NextAction("attack", ACTION_EMERGENCY + 9),
+            NULL)));
 
-    float GetValue(Action* action) override
-    {
-        if (!action)
-            return 1.0f;
+    triggers.push_back(new TriggerNode(
+        "razorgore far from boss",
+        NextAction::array(0, new NextAction("move near razorgore", ACTION_EMERGENCY + 6), NULL)));
+}
 
-        if (ai->GetBot()->getClass() != CLASS_ROGUE)
-            return 1.0f;
+void RazorgoreFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "razorgore controller alive",
+        NextAction::array(0, new NextAction("focus razorgore controller", ACTION_HIGH + 10), NULL)));
+}
 
-        const std::string& name = action->getName();
+void RazorgoreFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
+{
+    multipliers.push_back(new RazorgoreCrowdControlMultiplier(ai));
+    multipliers.push_back(new RazorgoreEggPhaseMovementMultiplier(ai));
+}
 
-        // Enable only the following strats for suppression room to avoid regular combat breaking logic
-        if (name == "stealth for suppression device" ||
-            name == "move to suppression device" ||
-            name == "disarm suppression device" ||
-            name == "deactivate suppression device")
-        {
-            return 1.0f;
-        }
+void RazorgoreFightStrategy::InitNonCombatMultipliers(std::list<Multiplier*>& multipliers)
+{
+    multipliers.push_back(new RazorgoreCrowdControlMultiplier(ai));
+}
 
-        if (name == "stealth" ||
-            name == "unstealth" ||
-            name == "check stealth" ||
-            name == "sprint" ||
-            name == "vanish")
-        {
-            return 1.0f;
-        }
-
-        if (name == "co" ||
-            name == "nc" ||
-            name == "load ai" ||
-            name == "save ai" ||
-            name == "list ai" ||
-            name == "reset ai" ||
-            name == "reset strats" ||
-            name == "reset values" ||
-            name == "check mount state" ||
-            name == "accept invitation" ||
-            name == "set combat state" ||
-            name == "set non combat state" ||
-            name == "set dead state" ||
-            name == "update pvp strats" ||
-            name == "update pve strats" ||
-            name == "update raid strats" ||
-            name == "loot roll" ||
-            name == "auto loot roll" ||
-            name == "follow" ||
-            name == "stay" ||
-            name == "food" ||
-            name == "drink")
-        {
-            return 1.0f;
-        }
-
-        return 0.0f;
-    }
-};
+void RazorgoreFightStrategy::OnStrategyAdded(BotState state)
+{
+    // Razorgore phase 1 is about killing Grethok immediately and then staying near
+    // Razorgore while the orb controller destroys eggs. Avoid-movement strategies
+    // tend to pull bots away from the boss/add stack, so disable them for this fight.
+    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_COMBAT);
+    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_NON_COMBAT);
+    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_REACTION);
+    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_COMBAT);
+    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_NON_COMBAT);
+    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_REACTION);
+}
 
 void SuppressionRoomStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {

@@ -183,6 +183,7 @@ namespace ai
             creators["four horseman"] = [](PlayerbotAI* ai) { return new FourHorsemanFightStrategy(ai); };
         
             creators["onyxia"] = [](PlayerbotAI* ai){ return new OnyxiaFightStrategy(ai); };
+
             creators["thekal"] = [](PlayerbotAI* ai){ return new HighPriestThekalFightStrategy(ai); };
             creators["jeklik"] = [](PlayerbotAI* ai){ return new HighPriestessJeklikFightStrategy(ai); };
             creators["hakkar"] = [](PlayerbotAI* ai){ return new HakkarFightStrategy(ai); };
@@ -197,6 +198,8 @@ namespace ai
             creators["golemagg"] = [](PlayerbotAI* ai){ return new GolemaggFightStrategy(ai); };
             creators["majordomo"] = [](PlayerbotAI* ai){ return new MajordomoExecutusFightStrategy(ai); };
             creators["ragnaros"] = [](PlayerbotAI* ai){ return new RagnarosFightStrategy(ai); };
+
+            creators["razorgore"] = [](PlayerbotAI* ai){ return new RazorgoreFightStrategy(ai); };
 
             creators["kurinnaxx"] = [](PlayerbotAI* ai) { return new KurinnaxxFightStrategy(ai); };
             creators["buru"] = [](PlayerbotAI* ai) { return new BuruFightStrategy(ai); };

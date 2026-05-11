@@ -5,6 +5,8 @@
 #include "playerbot/strategy/values/RtiTargetValue.h"
 #include "Groups/Group.h"
 
+#include <cfloat>
+#include <cmath>
 #include <list>
 #include <limits>
 #include <string>
@@ -29,6 +31,46 @@ namespace ai
 #else
             return unit->getVictim();
 #endif
+        }
+
+        static bool IsUnitTargetingBot(PlayerbotAI* ai, Unit* unit)
+        {
+            if (!ai || !unit || !unit->IsAlive())
+                return false;
+
+            Player* bot = ai->GetBot();
+            if (!bot)
+                return false;
+
+            Unit* victim = GetVictim(unit);
+            return victim && victim->GetObjectGuid() == bot->GetObjectGuid();
+        }
+
+        static bool IsCreatureTargetingBot(PlayerbotAI* ai, uint32 entry)
+        {
+            Unit* creature = FindAliveCreature(ai, entry);
+            return IsUnitTargetingBot(ai, creature);
+        }
+
+        static float DistanceToPosition(Unit* unit, float x, float y, float z)
+        {
+            if (!unit)
+                return FLT_MAX;
+
+            float dx = unit->GetPositionX() - x;
+            float dy = unit->GetPositionY() - y;
+            float dz = unit->GetPositionZ() - z;
+            return sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        static bool IsUnitNearPosition(Unit* unit, float x, float y, float z, float maxDistance)
+        {
+            return DistanceToPosition(unit, x, y, z) <= maxDistance;
+        }
+
+        static bool IsBotNearPosition(PlayerbotAI* ai, float x, float y, float z, float maxDistance)
+        {
+            return ai && IsUnitNearPosition(ai->GetBot(), x, y, z, maxDistance);
         }
 
         static bool IsValidUnitForSelection(PlayerbotAI* ai, Unit* unit, bool aliveOnly = true)

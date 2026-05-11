@@ -11,8 +11,8 @@ void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& t
         NextAction::array(0, new NextAction("enable razorgore fight strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
-        "end razorgore fight",
-        NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
+        "start vaelastrasz fight",
+        NextAction::array(0, new NextAction("enable vaelastrasz fight strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
         "suppression device close",
@@ -21,10 +21,6 @@ void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& t
 
 void BlackwingLairDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    triggers.push_back(new TriggerNode(
-        "end razorgore fight",
-        NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
-
     triggers.push_back(new TriggerNode(
         "suppression device need stealth",
         NextAction::array(0, new NextAction("stealth for suppression device", ACTION_HIGH + 3), NULL)));
@@ -41,46 +37,47 @@ void BlackwingLairDungeonStrategy::InitNonCombatTriggers(std::list<TriggerNode*>
 void RazorgoreFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     triggers.push_back(new TriggerNode(
-        "razorgore controller alive",
-        NextAction::array(0,
-            new NextAction("focus razorgore controller", ACTION_EMERGENCY + 10),
-            new NextAction("attack", ACTION_EMERGENCY + 9),
-            NULL)));
+        "razorgore controller needs target",
+        NextAction::array(0, new NextAction("mark razorgore controller", ACTION_EMERGENCY + 10), NULL)));
 
     triggers.push_back(new TriggerNode(
         "razorgore far from boss",
         NextAction::array(0, new NextAction("move near razorgore", ACTION_EMERGENCY + 6), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "end razorgore fight",
+        NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
 }
 
 void RazorgoreFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    triggers.push_back(new TriggerNode(
-        "razorgore controller alive",
-        NextAction::array(0, new NextAction("focus razorgore controller", ACTION_HIGH + 10), NULL)));
 }
 
 void RazorgoreFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
-    multipliers.push_back(new RazorgoreCrowdControlMultiplier(ai));
-    multipliers.push_back(new RazorgoreEggPhaseMovementMultiplier(ai));
 }
 
 void RazorgoreFightStrategy::InitNonCombatMultipliers(std::list<Multiplier*>& multipliers)
 {
-    multipliers.push_back(new RazorgoreCrowdControlMultiplier(ai));
 }
 
-void RazorgoreFightStrategy::OnStrategyAdded(BotState state)
+void VaelastraszFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // Razorgore phase 1 is about killing Grethok immediately and then staying near
-    // Razorgore while the orb controller destroys eggs. Avoid-movement strategies
-    // tend to pull bots away from the boss/add stack, so disable them for this fight.
-    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_COMBAT);
-    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_NON_COMBAT);
-    ai->ChangeStrategy("-avoid aoe", BotState::BOT_STATE_REACTION);
-    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_COMBAT);
-    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_NON_COMBAT);
-    ai->ChangeStrategy("-avoid mobs", BotState::BOT_STATE_REACTION);
+    triggers.push_back(new TriggerNode(
+        "vaelastrasz tank needs pull position",
+        NextAction::array(0, new NextAction("move to vaelastrasz tank position", ACTION_EMERGENCY + 8), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "vaelastrasz ranged near pull position",
+        NextAction::array(0, new NextAction("move to vaelastrasz ranged position", ACTION_HIGH + 8), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "end vaelastrasz fight",
+        NextAction::array(0, new NextAction("disable vaelastrasz fight strategy", 100.0f), NULL)));
+}
+
+void VaelastraszFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
+{
 }
 
 void SuppressionRoomStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

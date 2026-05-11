@@ -1,6 +1,6 @@
 #pragma once
 
-#include "playerbot/strategy/Strategy.h"
+#include "../generic/DungeonStrategy.h"
 
 namespace ai
 {
@@ -26,7 +26,17 @@ namespace ai
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
         void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
         void InitNonCombatMultipliers(std::list<Multiplier*>& multipliers) override;
-        void OnStrategyAdded(BotState state) override;
+    };
+
+    class VaelastraszFightStrategy : public Strategy
+    {
+    public:
+        VaelastraszFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "vaelastrasz"; }
+
+    private:
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
     };
 
     class SuppressionRoomStrategy : public Strategy

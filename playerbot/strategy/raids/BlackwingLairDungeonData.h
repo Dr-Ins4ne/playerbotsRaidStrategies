@@ -2,6 +2,9 @@
 
 #include "DungeonTargetHelper.h"
 
+#include <cfloat>
+#include <cmath>
+
 namespace ai
 {
     namespace BlackwingLair
@@ -10,10 +13,20 @@ namespace ai
 
         static const uint32 NPC_RAZORGORE = 12435;
         static const uint32 NPC_GRETHOK_CONTROLLER = 12557;
+        static const uint32 NPC_VAELASTRASZ = 13020;
 
         static const float RAZORGORE_EGG_PHASE_NEAR_DISTANCE = 18.0f;
         static const float RAZORGORE_EGG_PHASE_RING_MIN = 9.0f;
         static const float RAZORGORE_EGG_PHASE_RING_MAX = 14.0f;
+
+        static const float VAELASTRASZ_PULL_X = -7485.0f;
+        static const float VAELASTRASZ_PULL_Y = -1023.0f;
+        static const float VAELASTRASZ_PULL_Z = 408.6f;
+        static const float VAELASTRASZ_RANGED_X = -7513.0f;
+        static const float VAELASTRASZ_RANGED_Y = -1004.0f;
+        static const float VAELASTRASZ_RANGED_Z = 408.5f;
+        static const float VAELASTRASZ_POSITION_REACHED_DISTANCE = 4.0f;
+        static const float VAELASTRASZ_RANGED_PULL_POSITION_DISTANCE = 12.0f;
 
         static Unit* FindRazorgore(PlayerbotAI* ai)
         {
@@ -25,14 +38,34 @@ namespace ai
             return DungeonTargetHelper::FindAliveCreature(ai, NPC_GRETHOK_CONTROLLER);
         }
 
+        static Unit* FindVaelastrasz(PlayerbotAI* ai)
+        {
+            return DungeonTargetHelper::FindAliveCreature(ai, NPC_VAELASTRASZ);
+        }
+
+        static bool IsVaelastraszTargetingBot(PlayerbotAI* ai)
+        {
+            return DungeonTargetHelper::IsCreatureTargetingBot(ai, NPC_VAELASTRASZ);
+        }
+
+        static float DistanceToVaelastraszPullPosition(Player* bot)
+        {
+            return DungeonTargetHelper::DistanceToPosition(bot, VAELASTRASZ_PULL_X, VAELASTRASZ_PULL_Y, VAELASTRASZ_PULL_Z);
+        }
+
+        static float DistanceToVaelastraszRangedPosition(Player* bot)
+        {
+            return DungeonTargetHelper::DistanceToPosition(bot, VAELASTRASZ_RANGED_X, VAELASTRASZ_RANGED_Y, VAELASTRASZ_RANGED_Z);
+        }
+
         static bool IsRazorgoreFightVisible(PlayerbotAI* ai)
         {
             return FindRazorgore(ai) || FindGrethokController(ai);
         }
 
-        // Heuristic for phase 1 after Grethok dies: Razorgore is still alive, but
-        // the raid should not be hard-switching onto Razorgore yet. Once the normal
-        // kill phase starts and Razorgore becomes the current target, this returns false.
+        // Phase 1 after Grethok dies: Razorgore is alive, but the raid should
+        // not hard-switch onto Razorgore yet. Once the real kill phase starts
+        // and Razorgore is the current target, this returns false.
         static bool IsRazorgoreEggPhase(PlayerbotAI* ai)
         {
             if (!FindRazorgore(ai))

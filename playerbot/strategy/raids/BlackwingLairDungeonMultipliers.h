@@ -32,4 +32,13 @@ namespace ai
 
         float GetValue(Action* action) override;
     };
+
+    class BroodlordSuppressFleeMultiplier : public Multiplier
+    {
+    public:
+        BroodlordSuppressFleeMultiplier(PlayerbotAI* ai)
+            : Multiplier(ai, "broodlord suppress flee") {}
+
+        float GetValue(Action* action) override;
+    };
 }

@@ -200,6 +200,8 @@ namespace ai
             creators["ragnaros"] = [](PlayerbotAI* ai){ return new RagnarosFightStrategy(ai); };
 
             creators["razorgore"] = [](PlayerbotAI* ai){ return new RazorgoreFightStrategy(ai); };
+            creators["vaelastrasz"] = [](PlayerbotAI* ai){ return new VaelastraszFightStrategy(ai); };
+            creators["broodlord"] = [](PlayerbotAI* ai){return new BroodlordFightStrategy(ai);};
 
             creators["kurinnaxx"] = [](PlayerbotAI* ai) { return new KurinnaxxFightStrategy(ai); };
             creators["buru"] = [](PlayerbotAI* ai) { return new BuruFightStrategy(ai); };

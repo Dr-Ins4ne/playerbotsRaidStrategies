@@ -28,6 +28,28 @@ namespace ai
         static const float VAELASTRASZ_POSITION_REACHED_DISTANCE = 4.0f;
         static const float VAELASTRASZ_RANGED_PULL_POSITION_DISTANCE = 12.0f;
 
+        static const uint32 NPC_BROODLORD_LASHLAYER = 12017;
+
+        static const float BROODLORD_STACK_X = -7555.6f;
+        static const float BROODLORD_STACK_Y = -1067.2f;
+        static const float BROODLORD_STACK_Z = 449.3f;
+        static const float BROODLORD_STACK_DISTANCE = 3.0f;
+
+        static Unit* FindBroodlord(PlayerbotAI* ai)
+        {
+            return DungeonTargetHelper::FindAliveCreature(ai, NPC_BROODLORD_LASHLAYER);
+        }
+
+        static bool IsBotNearBroodlordStackPosition(PlayerbotAI* ai)
+        {
+            return DungeonTargetHelper::IsBotNearPosition(
+                ai,
+                BROODLORD_STACK_X,
+                BROODLORD_STACK_Y,
+                BROODLORD_STACK_Z,
+                BROODLORD_STACK_DISTANCE);
+        }
+
         static Unit* FindRazorgore(PlayerbotAI* ai)
         {
             return DungeonTargetHelper::FindAliveCreature(ai, NPC_RAZORGORE);

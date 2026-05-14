@@ -35,55 +35,7 @@ namespace
     }
 }
 
-bool RazorgoreStartFightTrigger::IsActive()
-{
-    if (ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT))
-        return false;
 
-    if (!ai->HasStrategy("blackwing lair", BotState::BOT_STATE_COMBAT))
-        return false;
-
-    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != BlackwingLair::MAP_ID)
-        return false;
-
-    if (!ai->IsStateActive(BotState::BOT_STATE_COMBAT))
-        return false;
-
-    Unit* currentTarget = AI_VALUE(Unit*, "current target");
-    if (currentTarget && currentTarget->IsAlive() &&
-        (currentTarget->GetEntry() == BlackwingLair::NPC_GRETHOK_CONTROLLER ||
-         currentTarget->GetEntry() == BlackwingLair::NPC_RAZORGORE))
-    {
-        return true;
-    }
-
-    std::list<ObjectGuid> attackers = AI_VALUE(std::list<ObjectGuid>, "attackers");
-    for (const ObjectGuid& attackerGuid : attackers)
-    {
-        Unit* attacker = ai->GetUnit(attackerGuid);
-        if (!attacker || !attacker->IsAlive())
-            continue;
-
-        if (attacker->GetEntry() == BlackwingLair::NPC_GRETHOK_CONTROLLER ||
-            attacker->GetEntry() == BlackwingLair::NPC_RAZORGORE)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool RazorgoreEndFightTrigger::IsActive()
-{
-    if (!ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT))
-        return false;
-
-    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != BlackwingLair::MAP_ID)
-        return true;
-
-    return !ai->IsStateActive(BotState::BOT_STATE_COMBAT);
-}
 
 bool RazorgoreControllerNeedsTargetTrigger::IsActive()
 {
@@ -132,52 +84,6 @@ bool RazorgoreFarFromBossTrigger::IsActive()
     return bot->GetDistance(razorgore) > BlackwingLair::RAZORGORE_EGG_PHASE_NEAR_DISTANCE;
 }
 
-bool VaelastraszStartFightTrigger::IsActive()
-{
-    if (ai->HasStrategy("vaelastrasz", BotState::BOT_STATE_COMBAT))
-        return false;
-
-    if (!ai->HasStrategy("blackwing lair", BotState::BOT_STATE_COMBAT))
-        return false;
-
-    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != BlackwingLair::MAP_ID)
-        return false;
-
-    if (!ai->IsStateActive(BotState::BOT_STATE_COMBAT))
-        return false;
-
-    Unit* currentTarget = AI_VALUE(Unit*, "current target");
-    if (currentTarget && currentTarget->IsAlive() &&
-        currentTarget->GetEntry() == BlackwingLair::NPC_VAELASTRASZ)
-    {
-        return true;
-    }
-
-    std::list<ObjectGuid> attackers = AI_VALUE(std::list<ObjectGuid>, "attackers");
-    for (const ObjectGuid& attackerGuid : attackers)
-    {
-        Unit* attacker = ai->GetUnit(attackerGuid);
-        if (!attacker || !attacker->IsAlive())
-            continue;
-
-        if (attacker->GetEntry() == BlackwingLair::NPC_VAELASTRASZ)
-            return true;
-    }
-
-    return false;
-}
-
-bool VaelastraszEndFightTrigger::IsActive()
-{
-    if (!ai->HasStrategy("vaelastrasz", BotState::BOT_STATE_COMBAT))
-        return false;
-
-    if (!bot->IsInWorld() || bot->IsBeingTeleported() || bot->GetMapId() != BlackwingLair::MAP_ID)
-        return true;
-
-    return !ai->IsStateActive(BotState::BOT_STATE_COMBAT);
-}
-
 bool VaelastraszTankNeedsPullPositionTrigger::IsActive()
 {
     if (!ai->HasStrategy("vaelastrasz", BotState::BOT_STATE_COMBAT))
@@ -221,6 +127,27 @@ bool VaelastraszRangedNearPullPositionTrigger::IsActive()
 
     return BlackwingLair::DistanceToVaelastraszRangedPosition(bot) >
            BlackwingLair::VAELASTRASZ_POSITION_REACHED_DISTANCE;
+}
+
+bool BroodlordOutOfPositionTrigger::IsActive()
+{
+    if (!ai->HasStrategy("broodlord", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!bot || !bot->IsInWorld() || bot->IsBeingTeleported())
+        return false;
+
+    if (!ai->CanMove())
+        return false;
+
+    if (!BlackwingLair::FindBroodlord(ai))
+        return false;
+
+    const Action* lastAction = ai->GetLastExecutedAction(BotState::BOT_STATE_COMBAT);
+    if (lastAction && lastAction->getName() == "move to broodlord stack position")
+        return false;
+
+    return !BlackwingLair::IsBotNearBroodlordStackPosition(ai);
 }
 
 bool SuppressionDeviceNeedStealthTrigger::IsActive()

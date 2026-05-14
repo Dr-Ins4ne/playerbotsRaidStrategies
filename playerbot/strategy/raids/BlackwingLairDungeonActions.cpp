@@ -282,6 +282,37 @@ bool MoveToVaelastraszRangedPositionAction::isUseful()
            BlackwingLair::VAELASTRASZ_POSITION_REACHED_DISTANCE;
 }
 
+bool MoveToBroodlordStackPositionAction::isUseful()
+{
+    if (!ai->HasStrategy("broodlord", BotState::BOT_STATE_COMBAT))
+        return false;
+
+    if (!BlackwingLair::FindBroodlord(ai))
+        return false;
+
+    if (!IsBotReadyForDungeonMovement(BlackwingLair::MAP_ID))
+        return false;
+
+    return !BlackwingLair::IsBotNearBroodlordStackPosition(ai);
+}
+
+bool MoveToBroodlordStackPositionAction::Execute(Event& event)
+{
+    if (!isUseful())
+        return false;
+
+    if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+    {
+        ai->TellPlayerNoFacing(GetMaster(), "Broodlord: moving to stack position");
+    }
+
+    return MoveToDungeonPosition(
+        BlackwingLair::MAP_ID,
+        BlackwingLair::BROODLORD_STACK_X,
+        BlackwingLair::BROODLORD_STACK_Y,
+        BlackwingLair::BROODLORD_STACK_Z);
+}
+
 bool MoveToSuppressionDeviceAction::Execute(Event& event)
 {
     std::list<GuidPosition> gos = GetUsableSuppressionDevicesInSight(ai);

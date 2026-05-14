@@ -94,6 +94,16 @@ namespace ai
         bool isUseful() override;
     };
 
+    class MoveToBroodlordStackPositionAction : public DungeonMovementActionBase
+    {
+    public:
+        MoveToBroodlordStackPositionAction(PlayerbotAI* ai)
+            : DungeonMovementActionBase(ai, "move to broodlord stack position") {}
+
+        bool Execute(Event& event) override;
+        bool isUseful() override;
+    };
+
     class MoveToSuppressionDeviceAction : public MovementAction
     {
     public:
@@ -159,6 +169,12 @@ namespace ai
             creators["move near razorgore"] = [](PlayerbotAI* ai) { return new MoveNearRazorgoreAction(ai); };
             creators["move to vaelastrasz tank position"] = [](PlayerbotAI* ai) { return new MoveToVaelastraszTankPositionAction(ai); };
             creators["move to vaelastrasz ranged position"] = [](PlayerbotAI* ai) { return new MoveToVaelastraszRangedPositionAction(ai); };
+            
+            creators["enable broodlord fight strategy"] = [](PlayerbotAI* ai){return new ChangeCombatStrategyAction(ai, "enable broodlord fight strategy", "+broodlord");};
+            creators["disable broodlord fight strategy"] = [](PlayerbotAI* ai){return new ChangeCombatStrategyAction(ai, "disable broodlord fight strategy", "-broodlord");};
+            creators["move to broodlord stack position"] = [](PlayerbotAI* ai){return new MoveToBroodlordStackPositionAction(ai);};
+            
+            
             creators["move to suppression device"] = [](PlayerbotAI* ai) { return new MoveToSuppressionDeviceAction(ai); };
             creators["stealth for suppression device"] = [](PlayerbotAI* ai) { return new StealthForSuppressionDeviceAction(ai); };
             creators["deactivate suppression device"] = [](PlayerbotAI* ai) { return new DeactivateSuppressionDeviceAction(ai); };

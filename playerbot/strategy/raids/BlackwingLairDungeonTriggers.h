@@ -23,23 +23,7 @@ namespace ai
             : LeaveDungeonTrigger(ai, "leave blackwing lair", "blackwing lair", BlackwingLair::MAP_ID) {}
     };
 
-    class RazorgoreStartFightTrigger : public Trigger
-    {
-    public:
-        RazorgoreStartFightTrigger(PlayerbotAI* ai)
-            : Trigger(ai, "start razorgore fight", 1) {}
 
-        bool IsActive() override;
-    };
-
-    class RazorgoreEndFightTrigger : public Trigger
-    {
-    public:
-        RazorgoreEndFightTrigger(PlayerbotAI* ai)
-            : Trigger(ai, "end razorgore fight", 2) {}
-
-        bool IsActive() override;
-    };
 
     class RazorgoreControllerNeedsTargetTrigger : public Trigger
     {
@@ -77,23 +61,7 @@ namespace ai
         bool IsActive() override;
     };
 
-    class VaelastraszStartFightTrigger : public Trigger
-    {
-    public:
-        VaelastraszStartFightTrigger(PlayerbotAI* ai)
-            : Trigger(ai, "start vaelastrasz fight", 1) {}
-
-        bool IsActive() override;
-    };
-
-    class VaelastraszEndFightTrigger : public Trigger
-    {
-    public:
-        VaelastraszEndFightTrigger(PlayerbotAI* ai)
-            : Trigger(ai, "end vaelastrasz fight", 2) {}
-
-        bool IsActive() override;
-    };
+ 
 
     class VaelastraszTankNeedsPullPositionTrigger : public Trigger
     {
@@ -109,6 +77,17 @@ namespace ai
     public:
         VaelastraszRangedNearPullPositionTrigger(PlayerbotAI* ai)
             : Trigger(ai, "vaelastrasz ranged near pull position", 1) {}
+
+        bool IsActive() override;
+    };
+
+
+
+    class BroodlordOutOfPositionTrigger : public Trigger
+    {
+    public:
+        BroodlordOutOfPositionTrigger(PlayerbotAI* ai)
+            : Trigger(ai, "broodlord out of position", 1) {}
 
         bool IsActive() override;
     };
@@ -147,8 +126,12 @@ namespace ai
         {
             creators["enter blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairEnterDungeonTrigger(ai); };
             creators["leave blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairLeaveDungeonTrigger(ai); };
-            creators["start razorgore fight"] = [](PlayerbotAI* ai) { return new RazorgoreStartFightTrigger(ai); };
-            creators["end razorgore fight"] = [](PlayerbotAI* ai) { return new RazorgoreEndFightTrigger(ai); };
+            creators["start razorgore fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai,"start razorgore fight","razorgore",BlackwingLair::NPC_RAZORGORE); };
+            creators["end razorgore fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai,"end razorgore fight","razorgore",BlackwingLair::NPC_RAZORGORE);};
+            creators["start vaelastrasz fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai,"start vaelastrasz fight","vaelastrasz",BlackwingLair::NPC_VAELASTRASZ);};
+            creators["end vaelastrasz fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai,"end vaelastrasz fight","vaelastrasz",BlackwingLair::NPC_VAELASTRASZ);};
+            creators["start broodlord fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai,"start broodlord fight","broodlord",BlackwingLair::NPC_BROODLORD_LASHLAYER);};
+            creators["end broodlord fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai,"end broodlord fight","broodlord",BlackwingLair::NPC_BROODLORD_LASHLAYER);};
 
             // Preferred anti-spam trigger. It becomes false once Grethok is the current target.
             creators["razorgore controller needs target"] = [](PlayerbotAI* ai) { return new RazorgoreControllerNeedsTargetTrigger(ai); };
@@ -159,10 +142,13 @@ namespace ai
 
             creators["razorgore egg phase"] = [](PlayerbotAI* ai) { return new RazorgoreEggPhaseTrigger(ai); };
             creators["razorgore far from boss"] = [](PlayerbotAI* ai) { return new RazorgoreFarFromBossTrigger(ai); };
-            creators["start vaelastrasz fight"] = [](PlayerbotAI* ai) { return new VaelastraszStartFightTrigger(ai); };
-            creators["end vaelastrasz fight"] = [](PlayerbotAI* ai) { return new VaelastraszEndFightTrigger(ai); };
+
             creators["vaelastrasz tank needs pull position"] = [](PlayerbotAI* ai) { return new VaelastraszTankNeedsPullPositionTrigger(ai); };
             creators["vaelastrasz ranged near pull position"] = [](PlayerbotAI* ai) { return new VaelastraszRangedNearPullPositionTrigger(ai); };
+            
+
+            creators["broodlord out of position"] = [](PlayerbotAI* ai){return new BroodlordOutOfPositionTrigger(ai);};
+            
             creators["suppression device need stealth"] = [](PlayerbotAI* ai) { return new SuppressionDeviceNeedStealthTrigger(ai); };
             creators["suppression device in sight"] = [](PlayerbotAI* ai) { return new SuppressionDeviceInSightTrigger(ai); };
             creators["suppression device close"] = [](PlayerbotAI* ai) { return new SuppressionDeviceCloseTrigger(ai); };

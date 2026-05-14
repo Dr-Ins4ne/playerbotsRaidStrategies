@@ -15,6 +15,10 @@ void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& t
         NextAction::array(0, new NextAction("enable vaelastrasz fight strategy", 100.0f), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "start broodlord fight",
+        NextAction::array(0, new NextAction("enable broodlord fight strategy", 100.0f), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "suppression device close",
         NextAction::array(0, new NextAction("disarm suppression device", 80.0f), NULL)));
 }
@@ -78,6 +82,26 @@ void VaelastraszFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
 
 void VaelastraszFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
 {
+}
+
+void BroodlordFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
+{
+    triggers.push_back(new TriggerNode(
+        "broodlord out of position",
+        NextAction::array(0,
+            new NextAction("move to broodlord stack position", ACTION_EMERGENCY + 6),
+            NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "end broodlord fight",
+        NextAction::array(0,
+            new NextAction("disable broodlord fight strategy", 100.0f),
+            NULL)));
+}
+
+void BroodlordFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
+{
+    multipliers.push_back(new BroodlordSuppressFleeMultiplier(ai));
 }
 
 void SuppressionRoomStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)

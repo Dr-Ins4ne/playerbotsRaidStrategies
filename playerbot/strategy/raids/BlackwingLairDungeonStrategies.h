@@ -39,6 +39,17 @@ namespace ai
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
     };
 
+    class BroodlordFightStrategy : public Strategy
+    {
+    public:
+        BroodlordFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
+        std::string getName() override { return "broodlord"; }
+
+    private:
+        void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
+        void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
+    };
+
     class SuppressionRoomStrategy : public Strategy
     {
     public:

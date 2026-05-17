@@ -168,6 +168,63 @@ namespace ai
         UseManaPotionAction(PlayerbotAI* ai) : UsePotionAction(ai, "mana potion", SPELL_EFFECT_ENERGIZE) {}
     };
 
+    class UseRejuvenationPotionAction : public UsePotionAction
+    {
+    public:
+        UseRejuvenationPotionAction(PlayerbotAI* ai)
+            : UsePotionAction(ai, "rejuvenation potion", SPELL_EFFECT_HEAL) {}
+
+        bool isUseful() override
+        {
+            if (!UsePotionAction::isUseful())
+                return false;
+
+            const bool lowHealth =
+                bot->GetHealthPercent() < sPlayerbotAIConfig.lowHealth;
+
+            const bool lowMana =
+                AI_VALUE2(bool, "has mana", "self target") &&
+                AI_VALUE2(uint8, "mana", "self target") < sPlayerbotAIConfig.lowMana;
+
+            return lowHealth || lowMana;
+        }
+
+        uint32 GetItemId() override
+        {
+            /*
+            * Highest available rejuvenation-style potion first.
+            *
+            * Classic:
+            *   2456  = Minor Rejuvenation Potion
+            *   18253 = Major Rejuvenation Potion
+            *
+            * TBC:
+            *   22850 = Super Rejuvenation Potion
+            *
+            * WotLK:
+            *   40087 = Powerful Rejuvenation Potion
+            */
+
+    #ifdef MANGOSBOT_TWO
+            if (bot->HasItemCount(40087, 1) || ai->HasCheat(BotCheatMask::item))
+                return 40087;
+    #endif
+
+    #ifndef MANGOSBOT_ZERO
+            if (bot->HasItemCount(22850, 1) || ai->HasCheat(BotCheatMask::item))
+                return 22850;
+    #endif
+
+            if (bot->HasItemCount(18253, 1) || ai->HasCheat(BotCheatMask::item))
+                return 18253;
+
+            if (bot->HasItemCount(2456, 1) || ai->HasCheat(BotCheatMask::item))
+                return 2456;
+
+            return 0;
+        }
+    };
+
     class UseHearthStoneAction : public UseAction
     {
     public:

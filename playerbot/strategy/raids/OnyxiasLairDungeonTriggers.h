@@ -240,7 +240,7 @@ namespace ai
             creators["onyxia flying melee needs whelp target"] = [](PlayerbotAI* ai) { return new OnyxiaFlyingMeleeNeedsWhelpTargetTrigger(ai); };
             creators["onyxia flying ranged needs onyxia target"] = [](PlayerbotAI* ai) { return new OnyxiaFlyingRangedNeedsOnyxiaTargetTrigger(ai); };
 
-            creators["onyxia too close"] = [](PlayerbotAI* ai) { return new CloseToCreatureTrigger(ai, "onyxia too close", 10184, 25.0f); };
+            creators["onyxia too close"] = [](PlayerbotAI* ai) { return new CloseToCreatureTrigger(ai, "onyxia too close", 10184, 5.0f); };
         }
     };
 }

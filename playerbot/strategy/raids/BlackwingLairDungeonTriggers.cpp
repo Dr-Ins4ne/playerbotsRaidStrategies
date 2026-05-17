@@ -143,10 +143,6 @@ bool BroodlordOutOfPositionTrigger::IsActive()
     if (!BlackwingLair::FindBroodlord(ai))
         return false;
 
-    const Action* lastAction = ai->GetLastExecutedAction(BotState::BOT_STATE_COMBAT);
-    if (lastAction && lastAction->getName() == "move to broodlord stack position")
-        return false;
-
     return !BlackwingLair::IsBotNearBroodlordStackPosition(ai);
 }
 

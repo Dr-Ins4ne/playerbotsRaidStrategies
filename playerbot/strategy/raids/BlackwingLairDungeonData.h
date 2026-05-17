@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DungeonTargetHelper.h"
-
+#include "DungeonBossLifecycle.h"
 #include <cfloat>
 #include <cmath>
 
@@ -33,7 +33,38 @@ namespace ai
         static const float BROODLORD_STACK_X = -7555.6f;
         static const float BROODLORD_STACK_Y = -1067.2f;
         static const float BROODLORD_STACK_Z = 449.3f;
+
+        static const float BROODLORD_HUNTER_STACK_X = -7560.5f;
+        static const float BROODLORD_HUNTER_STACK_Y = -1063.3f;
+        static const float BROODLORD_HUNTER_STACK_Z = 449.16f;
+
         static const float BROODLORD_STACK_DISTANCE = 3.0f;
+
+        static const DungeonBossDefinition BOSSES[] =
+        {
+            { "razorgore",   NPC_RAZORGORE },
+            { "vaelastrasz", NPC_VAELASTRASZ },
+            { "broodlord",   NPC_BROODLORD_LASHLAYER }
+        };
+
+        static const size_t BOSS_COUNT = sizeof(BOSSES) / sizeof(BOSSES[0]);
+
+        static void GetBroodlordStackPosition(PlayerbotAI* ai, float& x, float& y, float& z)
+        {
+            Player* bot = ai ? ai->GetBot() : nullptr;
+
+            if (bot && bot->getClass() == CLASS_HUNTER)
+            {
+                x = BROODLORD_HUNTER_STACK_X;
+                y = BROODLORD_HUNTER_STACK_Y;
+                z = BROODLORD_HUNTER_STACK_Z;
+                return;
+            }
+
+            x = BROODLORD_STACK_X;
+            y = BROODLORD_STACK_Y;
+            z = BROODLORD_STACK_Z;
+        }
 
         static Unit* FindBroodlord(PlayerbotAI* ai)
         {
@@ -42,11 +73,14 @@ namespace ai
 
         static bool IsBotNearBroodlordStackPosition(PlayerbotAI* ai)
         {
+            float x, y, z;
+            GetBroodlordStackPosition(ai, x, y, z);
+
             return DungeonTargetHelper::IsBotNearPosition(
                 ai,
-                BROODLORD_STACK_X,
-                BROODLORD_STACK_Y,
-                BROODLORD_STACK_Z,
+                x,
+                y,
+                z,
                 BROODLORD_STACK_DISTANCE);
         }
 

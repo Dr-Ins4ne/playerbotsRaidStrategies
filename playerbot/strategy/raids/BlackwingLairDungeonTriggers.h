@@ -126,12 +126,6 @@ namespace ai
         {
             creators["enter blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairEnterDungeonTrigger(ai); };
             creators["leave blackwing lair"] = [](PlayerbotAI* ai) { return new BlackwingLairLeaveDungeonTrigger(ai); };
-            creators["start razorgore fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai,"start razorgore fight","razorgore",BlackwingLair::NPC_RAZORGORE); };
-            creators["end razorgore fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai,"end razorgore fight","razorgore",BlackwingLair::NPC_RAZORGORE);};
-            creators["start vaelastrasz fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai,"start vaelastrasz fight","vaelastrasz",BlackwingLair::NPC_VAELASTRASZ);};
-            creators["end vaelastrasz fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai,"end vaelastrasz fight","vaelastrasz",BlackwingLair::NPC_VAELASTRASZ);};
-            creators["start broodlord fight"] = [](PlayerbotAI* ai){return new StartBossFightTrigger(ai,"start broodlord fight","broodlord",BlackwingLair::NPC_BROODLORD_LASHLAYER);};
-            creators["end broodlord fight"] = [](PlayerbotAI* ai){return new EndBossFightTrigger(ai,"end broodlord fight","broodlord",BlackwingLair::NPC_BROODLORD_LASHLAYER);};
 
             // Preferred anti-spam trigger. It becomes false once Grethok is the current target.
             creators["razorgore controller needs target"] = [](PlayerbotAI* ai) { return new RazorgoreControllerNeedsTargetTrigger(ai); };
@@ -152,6 +146,7 @@ namespace ai
             creators["suppression device need stealth"] = [](PlayerbotAI* ai) { return new SuppressionDeviceNeedStealthTrigger(ai); };
             creators["suppression device in sight"] = [](PlayerbotAI* ai) { return new SuppressionDeviceInSightTrigger(ai); };
             creators["suppression device close"] = [](PlayerbotAI* ai) { return new SuppressionDeviceCloseTrigger(ai); };
+            DungeonBossLifecycle::RegisterBossFightTriggers(creators,BlackwingLair::BOSSES,BlackwingLair::BOSS_COUNT);
         }
     };
 

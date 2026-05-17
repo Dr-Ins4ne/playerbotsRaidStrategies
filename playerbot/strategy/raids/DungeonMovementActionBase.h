@@ -6,6 +6,7 @@
 #include <cfloat>
 #include <string>
 
+
 namespace ai
 {
     class DungeonMovementActionBase : public MovementAction
@@ -44,20 +45,54 @@ namespace ai
             return DungeonTargetHelper::IsUnitNearPosition(bot, x, y, z, maxDistance);
         }
 
-        bool MoveToDungeonPosition(uint32 mapId, float x, float y, float z, bool waitForReachOnReaction = true)
+        bool MoveToDungeonPosition(
+            uint32 mapId,
+            float x,
+            float y,
+            float z,
+            bool waitForReachOnReaction = true,
+            bool normalizeZ = true,
+            bool requirePath = true)
         {
             if (!IsBotReadyForDungeonMovement(mapId))
                 return false;
 
-            const float distance = DistanceToPosition(x, y, z);
+            const uint32 targetMapId = mapId ? mapId : bot->GetMapId();
 
-            if (MoveTo(mapId, x, y, z, false, IsReaction(), false, true))
+            WorldPosition botPos(bot);
+            WorldPosition targetPos(targetMapId, x, y, z, 0.0f);
+
+            if (normalizeZ)
+                targetPos.setZ(targetPos.getHeight());
+
+            const float distance = botPos.distance(targetPos);
+
+            if (requirePath && !botPos.canPathTo(targetPos, bot))
+            {
+                if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+                    ai->TellPlayerNoFacing(GetMaster(), getName() + ": target position is not pathable");
+
+                return false;
+            }
+
+            if (MoveTo(
+                    targetMapId,
+                    targetPos.getX(),
+                    targetPos.getY(),
+                    targetPos.getZ(),
+                    false,
+                    IsReaction(),
+                    false,
+                    true))
             {
                 if (waitForReachOnReaction && IsReaction())
                     WaitForReach(distance);
 
                 return true;
             }
+
+            if (ai->HasStrategy("debug move", BotState::BOT_STATE_COMBAT))
+                ai->TellPlayerNoFacing(GetMaster(), getName() + ": MoveToDungeonPosition failed");
 
             return false;
         }

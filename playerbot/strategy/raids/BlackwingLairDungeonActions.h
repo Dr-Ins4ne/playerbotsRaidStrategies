@@ -31,25 +31,7 @@ namespace ai
             : ChangeAllStrategyAction(ai, "disable blackwing lair strategy", "-blackwing lair") {}
     };
 
-    class RazorgoreEnableFightStrategyAction : public Action
-    {
-    public:
-        RazorgoreEnableFightStrategyAction(PlayerbotAI* ai)
-            : Action(ai, "enable razorgore fight strategy") {}
-
-        bool Execute(Event& event) override;
-        bool isUseful() override;
-    };
-
-    class RazorgoreDisableFightStrategyAction : public Action
-    {
-    public:
-        RazorgoreDisableFightStrategyAction(PlayerbotAI* ai)
-            : Action(ai, "disable razorgore fight strategy") {}
-
-        bool Execute(Event& event) override;
-        bool isUseful() override;
-    };
+   
 
     class MarkRazorgoreControllerAction : public RaidIconActionBase
     {
@@ -155,30 +137,23 @@ namespace ai
         {
             creators["enable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairEnableDungeonStrategyAction(ai); };
             creators["disable blackwing lair strategy"] = [](PlayerbotAI* ai) { return new BlackwingLairDisableDungeonStrategyAction(ai); };
-            creators["enable razorgore fight strategy"] = [](PlayerbotAI* ai) { return new RazorgoreEnableFightStrategyAction(ai); };
-            creators["disable razorgore fight strategy"] = [](PlayerbotAI* ai) { return new RazorgoreDisableFightStrategyAction(ai); };
-            creators["enable vaelastrasz fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "enable vaelastrasz fight strategy", "+vaelastrasz"); };
-            creators["disable vaelastrasz fight strategy"] = [](PlayerbotAI* ai) { return new ChangeAllStrategyAction(ai, "disable vaelastrasz fight strategy", "-vaelastrasz"); };
-
+            
             // Preferred name. This marks/selects Grethok without bypassing normal combat execution.
             creators["mark razorgore controller"] = [](PlayerbotAI* ai) { return new MarkRazorgoreControllerAction(ai); };
 
-            // Compatibility alias for older strategy text. It intentionally uses the anti-spam mark/select action.
-            creators["focus razorgore controller"] = [](PlayerbotAI* ai) { return new MarkRazorgoreControllerAction(ai); };
 
             creators["move near razorgore"] = [](PlayerbotAI* ai) { return new MoveNearRazorgoreAction(ai); };
             creators["move to vaelastrasz tank position"] = [](PlayerbotAI* ai) { return new MoveToVaelastraszTankPositionAction(ai); };
             creators["move to vaelastrasz ranged position"] = [](PlayerbotAI* ai) { return new MoveToVaelastraszRangedPositionAction(ai); };
             
-            creators["enable broodlord fight strategy"] = [](PlayerbotAI* ai){return new ChangeCombatStrategyAction(ai, "enable broodlord fight strategy", "+broodlord");};
-            creators["disable broodlord fight strategy"] = [](PlayerbotAI* ai){return new ChangeCombatStrategyAction(ai, "disable broodlord fight strategy", "-broodlord");};
-            creators["move to broodlord stack position"] = [](PlayerbotAI* ai){return new MoveToBroodlordStackPositionAction(ai);};
+                creators["move to broodlord stack position"] = [](PlayerbotAI* ai){return new MoveToBroodlordStackPositionAction(ai); };
             
             
             creators["move to suppression device"] = [](PlayerbotAI* ai) { return new MoveToSuppressionDeviceAction(ai); };
             creators["stealth for suppression device"] = [](PlayerbotAI* ai) { return new StealthForSuppressionDeviceAction(ai); };
             creators["deactivate suppression device"] = [](PlayerbotAI* ai) { return new DeactivateSuppressionDeviceAction(ai); };
             creators["disarm suppression device"] = [](PlayerbotAI* ai) { return new DisarmSuppressionDeviceAction(ai); };
+            DungeonBossLifecycle::RegisterStrategyActions(creators,BlackwingLair::BOSSES,BlackwingLair::BOSS_COUNT);
         }
     };
 

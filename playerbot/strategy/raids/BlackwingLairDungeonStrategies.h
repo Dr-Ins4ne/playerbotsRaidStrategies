@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../generic/DungeonStrategy.h"
+#include "../raids/DungeonBossLifecycle.h"
 
 namespace ai
 {
@@ -15,35 +16,32 @@ namespace ai
         void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
     };
 
-    class RazorgoreFightStrategy : public Strategy
+    class RazorgoreFightStrategy : public DungeonBossStrategy
     {
     public:
-        RazorgoreFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "razorgore"; }
+        RazorgoreFightStrategy(PlayerbotAI* ai)
+            : DungeonBossStrategy(ai, "razorgore") {}
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
-        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
-        void InitCombatMultipliers(std::list<Multiplier*>& multipliers) override;
-        void InitNonCombatMultipliers(std::list<Multiplier*>& multipliers) override;
+
     };
 
-    class VaelastraszFightStrategy : public Strategy
+    class VaelastraszFightStrategy : public DungeonBossStrategy
     {
     public:
-        VaelastraszFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "vaelastrasz"; }
+        VaelastraszFightStrategy(PlayerbotAI* ai)
+            : DungeonBossStrategy(ai, "vaelastrasz") {}
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;
-        void InitNonCombatTriggers(std::list<TriggerNode*>& triggers) override;
     };
 
-    class BroodlordFightStrategy : public Strategy
+    class BroodlordFightStrategy : public DungeonBossStrategy
     {
     public:
-        BroodlordFightStrategy(PlayerbotAI* ai) : Strategy(ai) {}
-        std::string getName() override { return "broodlord"; }
+        BroodlordFightStrategy(PlayerbotAI* ai)
+            : DungeonBossStrategy(ai, "broodlord") {}
 
     private:
         void InitCombatTriggers(std::list<TriggerNode*>& triggers) override;

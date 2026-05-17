@@ -79,45 +79,6 @@ namespace
     }
 }
 
-bool RazorgoreEnableFightStrategyAction::Execute(Event& event)
-{
-    uint32 botGuid = bot->GetGUIDLow();
-    RazorgoreStrategySnapshot snapshot = BuildRazorgoreStrategySnapshot(ai);
-    sRazorgoreStrategySnapshots[botGuid] = snapshot;
-
-    RemoveRazorgoreDelayedEngagementStrategies(ai, snapshot);
-
-    if (!ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT))
-        ai->ChangeStrategy("+razorgore", BotState::BOT_STATE_COMBAT);
-
-    return true;
-}
-
-bool RazorgoreEnableFightStrategyAction::isUseful()
-{
-    return !ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT);
-}
-
-bool RazorgoreDisableFightStrategyAction::Execute(Event& event)
-{
-    uint32 botGuid = bot->GetGUIDLow();
-    std::map<uint32, RazorgoreStrategySnapshot>::iterator snapshotItr = sRazorgoreStrategySnapshots.find(botGuid);
-    if (snapshotItr != sRazorgoreStrategySnapshots.end())
-    {
-        RestoreRazorgoreDelayedEngagementStrategies(ai, snapshotItr->second);
-        sRazorgoreStrategySnapshots.erase(snapshotItr);
-    }
-
-    if (ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT))
-        ai->ChangeStrategy("-razorgore", BotState::BOT_STATE_COMBAT);
-
-    return true;
-}
-
-bool RazorgoreDisableFightStrategyAction::isUseful()
-{
-    return ai->HasStrategy("razorgore", BotState::BOT_STATE_COMBAT);
-}
 
 bool MarkRazorgoreControllerAction::Execute(Event& event)
 {
@@ -306,11 +267,14 @@ bool MoveToBroodlordStackPositionAction::Execute(Event& event)
         ai->TellPlayerNoFacing(GetMaster(), "Broodlord: moving to stack position");
     }
 
+    float x, y, z;
+    BlackwingLair::GetBroodlordStackPosition(ai, x, y, z);
+
     return MoveToDungeonPosition(
         BlackwingLair::MAP_ID,
-        BlackwingLair::BROODLORD_STACK_X,
-        BlackwingLair::BROODLORD_STACK_Y,
-        BlackwingLair::BROODLORD_STACK_Z);
+        x,
+        y,
+        z);
 }
 
 bool MoveToSuppressionDeviceAction::Execute(Event& event)

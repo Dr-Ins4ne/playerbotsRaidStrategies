@@ -1,4 +1,3 @@
-
 #include "playerbot/playerbot.h"
 #include "UsePotionsStrategy.h"
 
@@ -11,15 +10,25 @@ public:
     {
         creators["healthstone"] = &healthstone;
         creators["healing potion"] = &healing_potion;
+        creators["rejuvenation potion"] = &rejuvenation_potion;
         creators["dark rune"] = &dark_rune;
+        creators["mana potion"] = &mana_potion;
     }
 
 private:
+    // Health chain:
+    // healthstone -> healing potion -> rejuvenation potion -> bandage
     ACTION_NODE_A(healthstone, "healthstone", "healing potion");
 
-    ACTION_NODE_A(healing_potion, "healing potion", "use bandage");
+    ACTION_NODE_A(healing_potion, "healing potion", "rejuvenation potion");
 
+    ACTION_NODE_A(rejuvenation_potion, "rejuvenation potion", "use bandage");
+
+    // Mana chain:
+    // dark rune -> mana potion -> rejuvenation potion
     ACTION_NODE_A(dark_rune, "dark rune", "mana potion");
+
+    ACTION_NODE_A(mana_potion, "mana potion", "rejuvenation potion");
 };
 
 UsePotionsStrategy::UsePotionsStrategy(PlayerbotAI* ai) : Strategy(ai)
@@ -41,7 +50,7 @@ void UsePotionsStrategy::InitCombatTriggers(std::list<TriggerNode*> &triggers)
 
     triggers.push_back(new TriggerNode(
         "low health",
-        NextAction::array(0, new NextAction("use bandage", ACTION_MEDIUM_HEAL), NULL)));
+        NextAction::array(0, new NextAction("healing potion", ACTION_MEDIUM_HEAL), NULL)));
 
     triggers.push_back(new TriggerNode(
         "low mana",

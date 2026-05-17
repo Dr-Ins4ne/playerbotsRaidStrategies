@@ -226,7 +226,7 @@ namespace ai
             creators["target onyxia whelp"] = [](PlayerbotAI* ai) { return new TargetOnyxiaWhelpAction(ai); };
             creators["target onyxia"] = [](PlayerbotAI* ai) { return new TargetOnyxiaAction(ai); };
 
-            creators["move away from onyxia"] = [](PlayerbotAI* ai) { return new MoveAwayFromCreature(ai, "move away from onyxia", 10184, 30.0f); };
+            creators["move away from onyxia"] = [](PlayerbotAI* ai) { return new MoveAwayFromCreature(ai, "move away from onyxia", 10184, 10.0f); };
             creators["move out of onyxia egg pit"] = [](PlayerbotAI* ai) { return new MoveOutOfOnyxiaEggPitAction(ai); };
         }
     };

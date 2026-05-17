@@ -1,22 +1,13 @@
 #include "playerbot/playerbot.h"
 #include "BlackwingLairDungeonStrategies.h"
 #include "BlackwingLairDungeonMultipliers.h"
+#include "BlackwingLairDungeonData.h"
 
 using namespace ai;
 
 void BlackwingLairDungeonStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    triggers.push_back(new TriggerNode(
-        "start razorgore fight",
-        NextAction::array(0, new NextAction("enable razorgore fight strategy", 100.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "start vaelastrasz fight",
-        NextAction::array(0, new NextAction("enable vaelastrasz fight strategy", 100.0f), NULL)));
-
-    triggers.push_back(new TriggerNode(
-        "start broodlord fight",
-        NextAction::array(0, new NextAction("enable broodlord fight strategy", 100.0f), NULL)));
+    DungeonBossLifecycle::AddStartTriggers(triggers,BlackwingLair::BOSSES,BlackwingLair::BOSS_COUNT);
 
     triggers.push_back(new TriggerNode(
         "suppression device close",
@@ -53,17 +44,9 @@ void RazorgoreFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
         NextAction::array(0, new NextAction("disable razorgore fight strategy", 100.0f), NULL)));
 }
 
-void RazorgoreFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
-{
-}
 
-void RazorgoreFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multipliers)
-{
-}
 
-void RazorgoreFightStrategy::InitNonCombatMultipliers(std::list<Multiplier*>& multipliers)
-{
-}
+
 
 void VaelastraszFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
@@ -80,9 +63,7 @@ void VaelastraszFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigg
         NextAction::array(0, new NextAction("disable vaelastrasz fight strategy", 100.0f), NULL)));
 }
 
-void VaelastraszFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
-{
-}
+
 
 void BroodlordFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
@@ -90,6 +71,7 @@ void BroodlordFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
         "broodlord out of position",
         NextAction::array(0,
             new NextAction("move to broodlord stack position", ACTION_EMERGENCY + 6),
+            new NextAction("attack rti target", 99.0f),
             NULL)));
 
     triggers.push_back(new TriggerNode(

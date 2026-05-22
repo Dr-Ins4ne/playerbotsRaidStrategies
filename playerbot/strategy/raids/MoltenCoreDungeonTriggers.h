@@ -386,6 +386,49 @@ namespace ai
         static float MajordomoPitExitRadius() { return 3.0f; }
     };
 
+    class GarrTargetsNeedMarkingTrigger : public DungeonCreatureTrigger
+    {
+    public:
+        GarrTargetsNeedMarkingTrigger(PlayerbotAI* ai)
+            : DungeonCreatureTrigger(ai, "garr targets need marking", 1) {}
+
+        bool IsActive() override
+        {
+            Group* group = bot->GetGroup();
+            if (!group)
+                return false;
+
+            if (bot->InBattleGround())
+                return false;
+
+            Unit* garr = FindAliveCreature(NPC_GARR);
+            if (!garr)
+                return false;
+
+            int crossIndex = RtiTargetValue::GetRtiIndex("cross");
+            if (crossIndex >= 0 && group->GetTargetIcon(crossIndex) != garr->GetObjectGuid())
+                return true;
+
+            Unit* lavaSpawn = FindAliveCreature(NPC_LAVA_SPAWN);
+            if (!lavaSpawn)
+                return false;
+
+            int skullIndex = RtiTargetValue::GetRtiIndex("skull");
+            if (skullIndex < 0)
+                return false;
+
+            Unit* skullTarget = ai->GetUnit(group->GetTargetIcon(skullIndex));
+            if (!skullTarget || !skullTarget->IsAlive() || skullTarget->GetEntry() != NPC_LAVA_SPAWN)
+                return true;
+
+            return false;
+        }
+
+    private:
+        static const uint32 NPC_GARR       = 12057;
+        static const uint32 NPC_LAVA_SPAWN = 12265;
+    };
+
     class MoltenCoreTriggerContext : public NamedObjectContext<Trigger>
     {
     public:
@@ -402,6 +445,8 @@ namespace ai
             creators["end gehennas fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end gehennas fight", "gehennas", 12259);};
             creators["start garr fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start garr fight", "garr", 12057);};
             creators["end garr fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end garr fight", "garr", 12057);};
+            creators["garr targets need marking"] = [](PlayerbotAI* ai){ return new GarrTargetsNeedMarkingTrigger(ai); };
+            
             creators["start baron geddon fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start baron geddon fight", "baron geddon", 12056);};
             creators["end baron geddon fight"] = [](PlayerbotAI* ai) { return new EndBossFightTrigger(ai, "end baron geddon fight", "baron geddon", 12056);};
             creators["start shazzrah fight"] = [](PlayerbotAI* ai) { return new StartBossFightTrigger(ai, "start shazzrah fight", "shazzrah", 12264);};

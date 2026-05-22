@@ -316,7 +316,33 @@ namespace ai
         static float MajordomoPitExitRadius() { return 3.0f; }
     };
 
+    // -------------------------------------------------------------------------
+    // Garr
+    // -------------------------------------------------------------------------
 
+    class MarkGarrTargetsAction : public RaidIconActionBase
+    {
+    public:
+        MarkGarrTargetsAction(PlayerbotAI* ai)
+            : RaidIconActionBase(ai, "mark garr targets") {}
+
+        bool Execute(Event& event) override
+        {
+            bool changed = false;
+
+            // cross = Garr
+            changed |= SetTargetIcon("cross", NPC_GARR);
+
+            // skull = Lava Spawn
+            changed |= SetTargetIcon("skull", NPC_LAVA_SPAWN);
+
+            return changed;
+        }
+
+    private:
+        static const uint32 NPC_GARR       = 12057;
+        static const uint32 NPC_LAVA_SPAWN = 12265;
+    };
     // -------------------------------------------------------------------------
     // Molten Core action context
     // -------------------------------------------------------------------------
@@ -340,7 +366,7 @@ namespace ai
 
             creators["enable garr fight strategy"] = [](PlayerbotAI* ai){ return new ChangeAllStrategyAction(ai, "enable garr fight strategy", "+garr"); };
             creators["disable garr fight strategy"] = [](PlayerbotAI* ai){ return new ChangeAllStrategyAction(ai, "disable garr fight strategy", "-garr"); };
-
+            creators["mark garr targets"] = [](PlayerbotAI* ai){ return new MarkGarrTargetsAction(ai); };
             creators["enable baron geddon fight strategy"] = [](PlayerbotAI* ai){ return new ChangeAllStrategyAction(ai, "enable baron geddon fight strategy", "+baron geddon"); };
             creators["disable baron geddon fight strategy"] = [](PlayerbotAI* ai){ return new ChangeAllStrategyAction(ai, "disable baron geddon fight strategy", "-baron geddon"); };
 

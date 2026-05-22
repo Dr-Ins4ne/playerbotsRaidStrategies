@@ -568,6 +568,8 @@ namespace ai
             return changed;
         }
 
+        
+
         static bool SetRtiAndCurrentTarget(PlayerbotAI* ai, std::string const& icon, Unit* target)
         {
             bool changed = false;

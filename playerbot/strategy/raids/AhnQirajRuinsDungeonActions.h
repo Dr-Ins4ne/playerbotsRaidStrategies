@@ -218,7 +218,7 @@ namespace ai
                 return false;
 
             Aura* aura = ai->GetAura(AQ20::SPELL_KURINNAXX_MORTAL_WOUND, bot);
-            return aura && aura->GetStackAmount() >= 3;
+            return aura && aura->GetStackAmount() >= 7;
         }
     };
 

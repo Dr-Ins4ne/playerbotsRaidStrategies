@@ -189,7 +189,12 @@ void GehennasFightStrategy::InitCombatMultipliers(std::list<Multiplier*>& multip
 // Garr Fight Strategy
 void GarrFightStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
-    // No specific combat triggers
+    // Raid icons:
+    // cross = Garr
+    // skull = Lava Spawn
+    triggers.push_back(new TriggerNode(
+        "garr targets need marking",
+        NextAction::array(0, new NextAction("mark garr targets", 150.0f), NULL)));
 }
 
 void GarrFightStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

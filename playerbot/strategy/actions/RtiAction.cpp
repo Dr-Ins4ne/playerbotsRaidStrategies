@@ -45,6 +45,29 @@ void RtiAction::AppendRti(std::ostringstream & out, std::string type)
         out << " (" << target->GetName() << ")";
 }
 
+bool MarkRtiAction::isUseful()
+{
+    Group* group = bot->GetGroup();
+    if (!group)
+        return false;
+
+    if (bot->InBattleGround())
+        return false;
+
+    Unit* currentTarget = AI_VALUE(Unit*, "current target");
+    if (currentTarget)
+    {
+        for (int iconIndex = 0; iconIndex < 8; ++iconIndex)
+        {
+            ObjectGuid guid = group->GetTargetIcon(iconIndex);
+            if (guid == currentTarget->GetObjectGuid())
+                return false;
+        }
+    }
+
+    return true;
+}
+
 bool MarkRtiAction::Execute(Event& event)
 {
     Group *group = bot->GetGroup();
